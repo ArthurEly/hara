@@ -1,0 +1,23 @@
+Instance,Total LUTs,Logic LUTs,LUTRAMs,SRLs,FFs,RAMB36,RAMB18,DSP Blocks
+    StreamingDataflowPartition_1,39293,38689,220,384,27531,15,2,124
+        StreamingDataflowPartition_1_ConvolutionInputGenerator_hls_0,975,755,220,0,724,0,0,0
+        StreamingDataflowPartition_1_FMPadding_hls_0,112,112,0,0,124,0,0,0
+        StreamingDataflowPartition_1_LabelSelect_hls_0,99,99,0,0,99,0,0,0
+        StreamingDataflowPartition_1_MVAU_hls_0,27281,27281,0,0,5294,9,0,100
+        StreamingDataflowPartition_1_MVAU_hls_1,3078,3078,0,0,1389,2,1,22
+        StreamingDataflowPartition_1_MVAU_hls_2,6172,6172,0,0,16931,4,0,2
+        StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,489,489,0,0,1696,0,0,0
+        StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_0,12,12,0,0,51,0,0,0
+        StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_1,43,43,0,0,243,0,0,0
+        StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_2,7,7,0,0,27,0,0,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_0,310,86,0,224,35,0,0,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_1,19,19,0,0,35,0,0,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_10,7,7,0,0,10,0,0,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_2,258,98,0,160,45,0,0,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_3,36,36,0,0,68,0,0,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_4,77,77,0,0,148,0,0,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_5,83,83,0,0,163,0,0,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_6,165,165,0,0,325,0,0,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_7,11,11,0,0,19,0,0,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_8,44,44,0,0,57,0,1,0
+        StreamingDataflowPartition_1_StreamingFIFO_rtl_9,26,26,0,0,48,0,0,0

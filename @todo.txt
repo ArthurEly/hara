@@ -1,0 +1,2 @@
+gerar sat6 para a nova versão do FINN
+colocar tudo num script python

@@ -1,0 +1,9 @@
+Repository,PE,SIMD,ram_style,resType,mem_mode,runtime_writeable_weights,inFIFODepths,outFIFODepths,impl_style,depth,parallel_window,Total LUTs,Logic LUTs,LUTRAMs,SRLs,FFs,RAMB36,RAMB18,DSP Blocks
+t1w2_500fps_u,,,,,,,,,,,,6618,6014,330,274,5490,4,8,0
+t1w2_5000fps_u,,,,,,,,,,,,5281,4864,193,224,6987,6,2,0
+t1w2_50000fps_u,,,,,,,,,,,,8726,8085,255,386,12367,5,1,0
+t1w4_500fps_u,,,,,,,,,,,,6614,6202,180,232,10393,8,2,0
+t1w4_5000fps_u,,,,,,,,,,,,7274,6870,180,224,11488,7,3,0
+t1w4_50000fps_u,,,,,,,,,,,,12348,11686,278,384,17676,6,1,0
+t1w8_5000fps_u,,,,,,,,,,,,14034,13630,180,224,20477,10,3,18
+t1w8_50000fps_u,,,,,,,,,,,,39293,38689,220,384,27531,15,2,124
