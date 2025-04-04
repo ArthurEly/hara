@@ -32,7 +32,7 @@ t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_3,S
 t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_4,StreamingDataWidthConverter_rtl,partition_2,b'UINT2',[569],2,[576],4,"[1, 4, 4, 72]",4,4,0,0,9,0,0,0
 t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_5,StreamingDataWidthConverter_rtl,partition_2,b'UINT2',[2],2,[142],4,"[1, 2, 2, 144]",4,4,0,0,9,0,0,0
 t2w4_500fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_0,StreamingDataWidthConverter_rtl,partition_2,b'UINT4',[2],4,[178],8,"[1, 4, 4, 72]",5,5,0,0,15,0,0,0
-t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_0,StreamingDataWidthConverter_rtl,partition_2,b'UINT8',[2],8,[870],72,"[1, 16, 16, 36]",,,,,,,,
-t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_1,StreamingDataWidthConverter_rtl,partition_2,b'UINT4',[2],4,[682],16,"[1, 8, 8, 144]",,,,,,,,
-t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_2,StreamingDataWidthConverter_rtl,partition_2,b'UINT4',[2],4,[178],8,"[1, 4, 4, 72]",,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_0,StreamingDataWidthConverter_rtl,partition_2,b'UINT8',[2],8,[870],72,"[1, 16, 16, 36]",12,12,0,0,86,0,0,0
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_1,StreamingDataWidthConverter_rtl,partition_2,b'UINT4',[2],4,[682],16,"[1, 8, 8, 144]",6,6,0,0,24,0,0,0
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_2,StreamingDataWidthConverter_rtl,partition_2,b'UINT4',[2],4,[178],8,"[1, 4, 4, 72]",5,5,0,0,15,0,0,0
 t2w8_500fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_rtl_0,StreamingDataWidthConverter_rtl,partition_2,b'UINT8',[2],8,[178],16,"[1, 4, 4, 72]",7,7,0,0,27,0,0,0
