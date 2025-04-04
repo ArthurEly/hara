@@ -10,5 +10,7 @@ t1w8_5000fps_u,StreamingDataflowPartition_1_LabelSelect_hls_0,LabelSelect_hls,pa
 t1w8_50000fps_u,StreamingDataflowPartition_1_LabelSelect_hls_0,LabelSelect_hls,partition_2,1,6,1,[2],b'INT22',[1],[2],b'UINT8',99,99,0,0,99,0,0,0
 t2w2_500fps_u,StreamingDataflowPartition_1_LabelSelect_hls_0,LabelSelect_hls,partition_2,1,6,1,[2],b'INT7',[1],[2],b'UINT8',54,54,0,0,54,0,0,0
 t2w2_5000fps_u,StreamingDataflowPartition_1_LabelSelect_hls_0,LabelSelect_hls,partition_2,1,6,1,[2],b'INT7',[1],[2],b'UINT8',54,54,0,0,54,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_LabelSelect_hls_0,LabelSelect_hls,partition_2,1,6,1,[2],b'INT7',[1],[2],b'UINT8',54,54,0,0,54,0,0,0
 t2w4_500fps_u,StreamingDataflowPartition_1_LabelSelect_hls_0,LabelSelect_hls,partition_2,1,6,1,[2],b'INT11',[1],[2],b'UINT8',66,66,0,0,66,0,0,0
+t2w4_5000fps_u,StreamingDataflowPartition_1_LabelSelect_hls_0,LabelSelect_hls,partition_2,1,6,1,[2],b'INT11',[1],[2],b'UINT8',,,,,,,,
 t2w8_500fps_u,StreamingDataflowPartition_1_LabelSelect_hls_0,LabelSelect_hls,partition_2,1,6,1,[2],b'INT18',[1],[2],b'UINT8',87,87,0,0,87,0,0,0

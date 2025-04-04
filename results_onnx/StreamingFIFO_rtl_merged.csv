@@ -120,6 +120,28 @@ t2w2_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_14,StreamingFIFO_r
 t2w2_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_15,StreamingFIFO_rtl,partition_2,b'UINT2',2,"[1, 2, 2, 8, 1]",b'rtl',"[1, 2, 2, 8]",b'auto',5,5,0,0,8,0,0,0
 t2w2_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_16,StreamingFIFO_rtl,partition_2,b'INT7',2,"[1, 6, 1]",b'rtl',"[1, 6]",b'auto',11,11,0,0,18,0,0,0
 t2w2_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_17,StreamingFIFO_rtl,partition_2,b'UINT8',2,"[1, 1, 1]",b'rtl',"[1, 1]",b'auto',7,7,0,0,10,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_0,StreamingFIFO_rtl,partition_2,b'UINT8',435,"[1, 32, 32, 2, 2]",b'rtl',"[1, 32, 32, 4]",b'auto',310,86,0,224,35,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_1,StreamingFIFO_rtl,partition_2,b'UINT8',2,"[1, 34, 34, 2, 2]",b'rtl',"[1, 34, 34, 4]",b'auto',20,20,0,0,36,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_2,StreamingFIFO_rtl,partition_2,b'UINT8',146,"[1, 34, 34, 1, 4]",b'rtl',"[1, 34, 34, 4]",b'auto',257,97,0,160,45,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_3,StreamingFIFO_rtl,partition_2,b'UINT8',2,"[1, 16, 16, 9, 4]",b'rtl',"[1, 16, 16, 36]",b'auto',36,36,0,0,68,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_4,StreamingFIFO_rtl,partition_2,b'UINT8',2,"[1, 16, 16, 1, 36]",b'rtl',"[1, 16, 16, 36]",b'auto',299,299,0,0,586,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_5,StreamingFIFO_rtl,partition_2,b'UINT2',2,"[1, 16, 16, 8, 2]",b'rtl',"[1, 16, 16, 16]",b'auto',8,8,0,0,12,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_6,StreamingFIFO_rtl,partition_2,b'UINT2',32,"[1, 16, 16, 4, 4]",b'rtl',"[1, 16, 16, 16]",b'auto',39,31,0,8,18,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_7,StreamingFIFO_rtl,partition_2,b'UINT2',2,"[1, 18, 18, 4, 4]",b'rtl',"[1, 18, 18, 16]",b'auto',12,12,0,0,20,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_8,StreamingFIFO_rtl,partition_2,b'UINT2',58,"[1, 18, 18, 2, 8]",b'rtl',"[1, 18, 18, 16]",b'auto',74,42,0,32,27,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_9,StreamingFIFO_rtl,partition_2,b'UINT2',2,"[1, 8, 8, 18, 8]",b'rtl',"[1, 8, 8, 144]",b'auto',20,20,0,0,36,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_10,StreamingFIFO_rtl,partition_2,b'UINT2',32,"[1, 8, 8, 4, 36]",b'rtl',"[1, 8, 8, 144]",b'auto',166,94,0,72,82,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_11,StreamingFIFO_rtl,partition_2,b'UINT2',32,"[1, 8, 8, 8, 1]",b'rtl',"[1, 8, 8, 8]",b'auto',26,24,0,2,12,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_12,StreamingFIFO_rtl,partition_2,b'UINT2',146,"[1, 10, 10, 8, 1]",b'rtl',"[1, 10, 10, 8]",b'auto',47,37,0,10,15,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_13,StreamingFIFO_rtl,partition_2,b'UINT2',569,"[1, 4, 4, 72, 1]",b'vivado',"[1, 4, 4, 72]",b'auto',43,43,0,0,57,0,1,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_14,StreamingFIFO_rtl,partition_2,b'UINT2',576,"[1, 4, 4, 36, 2]",b'vivado',"[1, 4, 4, 72]",b'auto',43,43,0,0,57,0,1,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_15,StreamingFIFO_rtl,partition_2,b'UINT2',32,"[1, 4, 4, 16, 1]",b'rtl',"[1, 4, 4, 16]",b'auto',26,24,0,2,12,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_16,StreamingFIFO_rtl,partition_2,b'UINT2',121,"[1, 6, 6, 16, 1]",b'rtl',"[1, 6, 6, 16]",b'auto',38,30,0,8,14,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_17,StreamingFIFO_rtl,partition_2,b'UINT2',2,"[1, 2, 2, 144, 1]",b'rtl',"[1, 2, 2, 144]",b'auto',7,7,0,0,8,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_18,StreamingFIFO_rtl,partition_2,b'UINT2',142,"[1, 2, 2, 72, 2]",b'rtl',"[1, 2, 2, 144]",b'auto',64,44,0,20,17,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_19,StreamingFIFO_rtl,partition_2,b'UINT2',2,"[1, 2, 2, 8, 1]",b'rtl',"[1, 2, 2, 8]",b'auto',5,5,0,0,8,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_20,StreamingFIFO_rtl,partition_2,b'INT7',2,"[1, 6, 1]",b'rtl',"[1, 6]",b'auto',11,11,0,0,18,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_21,StreamingFIFO_rtl,partition_2,b'UINT8',2,"[1, 1, 1]",b'rtl',"[1, 1]",b'auto',7,7,0,0,10,0,0,0
 t2w4_500fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_0,StreamingFIFO_rtl,partition_2,b'UINT8',869,"[1, 32, 32, 4, 1]",b'rtl',"[1, 32, 32, 4]",b'auto',299,75,0,224,29,0,0,0
 t2w4_500fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_1,StreamingFIFO_rtl,partition_2,b'UINT8',4624,"[1, 34, 34, 4, 1]",b'vivado',"[1, 34, 34, 4]",b'auto',30,30,0,0,69,2,0,0
 t2w4_500fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_2,StreamingFIFO_rtl,partition_2,b'UINT8',9216,"[1, 16, 16, 36, 1]",b'vivado',"[1, 16, 16, 36]",b'auto',30,30,0,0,73,4,0,0
@@ -136,6 +158,24 @@ t2w4_500fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_12,StreamingFIFO_rt
 t2w4_500fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_13,StreamingFIFO_rtl,partition_2,b'UINT4',2,"[1, 2, 2, 8, 1]",b'rtl',"[1, 2, 2, 8]",b'auto',8,8,0,0,12,0,0,0
 t2w4_500fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_14,StreamingFIFO_rtl,partition_2,b'INT11',2,"[1, 6, 1]",b'rtl',"[1, 6]",b'auto',15,15,0,0,26,0,0,0
 t2w4_500fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_15,StreamingFIFO_rtl,partition_2,b'UINT8',2,"[1, 1, 1]",b'rtl',"[1, 1]",b'auto',7,7,0,0,10,0,0,0
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_0,StreamingFIFO_rtl,partition_2,b'UINT8',869,"[1, 32, 32, 4, 1]",b'rtl',"[1, 32, 32, 4]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_1,StreamingFIFO_rtl,partition_2,b'UINT8',4624,"[1, 34, 34, 4, 1]",b'vivado',"[1, 34, 34, 4]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_2,StreamingFIFO_rtl,partition_2,b'UINT8',2,"[1, 16, 16, 36, 1]",b'rtl',"[1, 16, 16, 36]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_3,StreamingFIFO_rtl,partition_2,b'UINT8',870,"[1, 16, 16, 4, 9]",b'vivado',"[1, 16, 16, 36]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_4,StreamingFIFO_rtl,partition_2,b'UINT4',147,"[1, 16, 16, 16, 1]",b'rtl',"[1, 16, 16, 16]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_5,StreamingFIFO_rtl,partition_2,b'UINT4',769,"[1, 18, 18, 16, 1]",b'vivado',"[1, 18, 18, 16]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_6,StreamingFIFO_rtl,partition_2,b'UINT4',2,"[1, 8, 8, 144, 1]",b'rtl',"[1, 8, 8, 144]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_7,StreamingFIFO_rtl,partition_2,b'UINT4',682,"[1, 8, 8, 36, 4]",b'vivado',"[1, 8, 8, 144]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_8,StreamingFIFO_rtl,partition_2,b'UINT4',2,"[1, 8, 8, 8, 1]",b'rtl',"[1, 8, 8, 8]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_9,StreamingFIFO_rtl,partition_2,b'UINT4',129,"[1, 10, 10, 8, 1]",b'rtl',"[1, 10, 10, 8]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_10,StreamingFIFO_rtl,partition_2,b'UINT4',2,"[1, 4, 4, 72, 1]",b'rtl',"[1, 4, 4, 72]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_11,StreamingFIFO_rtl,partition_2,b'UINT4',178,"[1, 4, 4, 36, 2]",b'rtl',"[1, 4, 4, 72]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_12,StreamingFIFO_rtl,partition_2,b'UINT4',2,"[1, 4, 4, 16, 1]",b'rtl',"[1, 4, 4, 16]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_13,StreamingFIFO_rtl,partition_2,b'UINT4',110,"[1, 6, 6, 16, 1]",b'rtl',"[1, 6, 6, 16]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_14,StreamingFIFO_rtl,partition_2,b'UINT4',286,"[1, 2, 2, 144, 1]",b'vivado',"[1, 2, 2, 144]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_15,StreamingFIFO_rtl,partition_2,b'UINT4',2,"[1, 2, 2, 8, 1]",b'rtl',"[1, 2, 2, 8]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_16,StreamingFIFO_rtl,partition_2,b'INT11',2,"[1, 6, 1]",b'rtl',"[1, 6]",b'auto',,,,,,,,
+t2w4_5000fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_17,StreamingFIFO_rtl,partition_2,b'UINT8',2,"[1, 1, 1]",b'rtl',"[1, 1]",b'auto',,,,,,,,
 t2w8_500fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_0,StreamingFIFO_rtl,partition_2,b'UINT8',869,"[1, 32, 32, 4, 1]",b'rtl',"[1, 32, 32, 4]",b'auto',299,75,0,224,29,0,0,0
 t2w8_500fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_1,StreamingFIFO_rtl,partition_2,b'UINT8',4624,"[1, 34, 34, 4, 1]",b'vivado',"[1, 34, 34, 4]",b'auto',30,30,0,0,69,2,0,0
 t2w8_500fps_u,StreamingDataflowPartition_1_StreamingFIFO_rtl_2,StreamingFIFO_rtl,partition_2,b'UINT8',9216,"[1, 16, 16, 36, 1]",b'vivado',"[1, 16, 16, 36]",b'auto',30,30,0,0,73,4,0,0
