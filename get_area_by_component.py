@@ -2,6 +2,8 @@ import xml.etree.ElementTree as ET
 import csv
 import os
 import json
+import onnx
+from onnx import helper
 
 # Diretório base
 base_dir = "/home/arthurely/Desktop/finn/notebooks/sat6_cnn/builds_pynq/"
@@ -60,7 +62,7 @@ for key, file_path in csv_files.items():
 # Dicionário para armazenar dados de instâncias
 instance_data = {}
 
-# Processamento dos arquivos XML
+# Processamento dos arquivos XML + JSON
 for repo_name, xml_file in xml_files:
     full_path = os.path.join(base_dir, xml_file)
 
@@ -76,7 +78,7 @@ for repo_name, xml_file in xml_files:
                 json_path = os.path.join(base_dir, repo_name, "final_hw_config.json")
 
                 # Inicializar campos do JSON
-                json_data_values = {key: "" for key in json_fields}  # Garante que todos os campos existam
+                json_data_values = {key: "" for key in json_fields}
 
                 # Ler JSON se existir
                 if os.path.exists(json_path):
@@ -92,10 +94,10 @@ for repo_name, xml_file in xml_files:
 
                 # Criar dicionário de componentes de área
                 area_values = {
-                    "LUTs": values[2:6],  # Total LUTs, Logic LUTs, LUTRAMs, SRLs
-                    "FFs": [values[6]],   # FFs
-                    "RAMs": values[7:9],  # RAMB36, RAMB18
-                    "DSPs": [values[9]],  # DSP Blocks
+                    "LUTs": values[2:6],
+                    "FFs": [values[6]],
+                    "RAMs": values[7:9],
+                    "DSPs": [values[9]],
                 }
 
                 # Adicionar ao dicionário de instâncias
@@ -120,8 +122,7 @@ for instance, data_rows in instance_data.items():
 for file in csv_files_handles.values():
     file.close()
 
-print("Arquivos CSV gerados com sucesso:")
+print("✅ Arquivos CSV de área gerados com sucesso:")
 for key, file_path in csv_files.items():
     print(f"- {file_path}")
-
-print("Arquivos CSV por instância gerados em:", instances_dir)
+print("✅ Arquivos CSV por instância gerados em:", instances_dir)

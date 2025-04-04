@@ -1,0 +1,48 @@
+Repo,NodeName,OpType,Partition,ActVal,MH,MW,PE,SIMD,accDataType,binaryXnorMode,inFIFODepths,inputDataType,noActivation,numInputVectors,outFIFODepths,outputDataType,resType,weightDataType,Total LUTs,Logic LUTs,LUTRAMs,SRLs,FFs,RAMB36,RAMB18,DSP Blocks
+t1w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,1,b'INT13',0,[9216],b'UINT8',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',689,689,0,0,1059,0,1,0
+t1w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,1,b'INT6',0,[2],b'UINT2',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',387,387,0,0,562,0,1,0
+t1w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT12',0,[32],b'UINT2',1,[1],[2],b'INT12',b'auto',b'INT2',307,307,0,0,349,0,1,0
+t1w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,12,b'INT13',0,[593],b'UINT8',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',737,737,0,0,1177,0,1,0
+t1w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,4,b'INT6',0,[2],b'UINT2',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',273,260,13,0,309,0,0,0
+t1w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT12',0,[338],b'UINT2',1,[1],[2],b'INT12',b'auto',b'INT2',2686,2686,0,0,4382,1,0,0
+t1w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,4,36,b'INT13',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',3407,3407,0,0,5051,4,0,0
+t1w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,20,b'INT6',0,[2],b'UINT2',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',350,315,35,0,618,0,0,0
+t1w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT12',0,[1022],b'UINT2',1,[1],[2],b'INT12',b'auto',b'INT2',2692,2692,0,0,4382,1,0,0
+t1w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,1,b'INT14',0,[9216],b'UINT8',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',507,507,0,0,546,0,1,0
+t1w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,1,b'INT9',0,[2],b'UINT4',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',350,350,0,0,303,0,1,0
+t1w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT14',0,[32],b'UINT4',1,[1],[2],b'INT14',b'auto',b'INT4',4224,4224,0,0,8585,2,0,0
+t1w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,12,b'INT14',0,[593],b'UINT8',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',1059,1059,0,0,1285,0,1,0
+t1w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,4,b'INT9',0,[2],b'UINT4',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',399,399,0,0,449,0,1,0
+t1w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT14',0,[338],b'UINT4',1,[1],[2],b'INT14',b'auto',b'INT4',4213,4213,0,0,8585,2,0,0
+t1w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,5,18,b'INT14',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',4657,4657,0,0,4382,4,0,0
+t1w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,20,b'INT9',0,[2],b'UINT4',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',740,682,58,0,1058,0,0,0
+t1w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT14',0,[1022],b'UINT4',1,[1],[2],b'INT14',b'auto',b'INT4',4223,4223,0,0,8585,2,0,0
+t1w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,1,b'INT18',0,[9216],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT7',2993,2993,0,0,863,0,1,1
+t1w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,1,b'INT18',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT8',2912,2912,0,0,728,0,1,1
+t1w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT22',0,[32],b'UINT8',1,[1],[2],b'INT22',b'auto',b'INT8',6176,6176,0,0,16931,4,0,2
+t1w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,12,b'INT18',0,[593],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT7',3267,3267,0,0,1363,1,1,12
+t1w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,4,b'INT18',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT8',2914,2914,0,0,894,0,1,4
+t1w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT22',0,[338],b'UINT8',1,[1],[2],b'INT22',b'auto',b'INT8',6182,6182,0,0,16931,4,0,2
+t1w8_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,10,9,b'INT18',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT7',27281,27281,0,0,5294,9,0,100
+t1w8_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,20,b'INT18',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT8',3078,3078,0,0,1389,2,1,22
+t1w8_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT22',0,[1022],b'UINT8',1,[1],[2],b'INT22',b'auto',b'INT8',6172,6172,0,0,16931,4,0,2
+t2w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,1,1,b'INT13',0,[9216],b'UINT8',0,"[1, 16, 16]",[32],b'UINT2',b'auto',b'INT2',377,377,0,0,513,0,1,0
+t2w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,1,b'INT9',0,[1582],b'UINT2',0,"[1, 8, 8]",[2],b'UINT2',b'auto',b'INT2',669,669,0,0,480,0,1,0
+t2w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT8',0,[178],b'UINT2',0,"[1, 4, 4]",[2],b'UINT2',b'auto',b'INT2',306,306,0,0,349,0,1,0
+t2w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,1,b'INT9',0,[286],b'UINT2',0,"[1, 2, 2]",[2],b'UINT2',b'auto',b'INT2',662,662,0,0,476,0,1,0
+t2w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT7',0,[2],b'UINT2',1,[1],[2],b'INT7',b'auto',b'INT2',276,276,0,0,233,0,1,0
+t2w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,1,9,b'INT13',0,[870],b'UINT8',0,"[1, 16, 16]",[148],b'UINT2',b'auto',b'INT2',689,689,0,0,1059,0,1,0
+t2w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,4,b'INT9',0,[682],b'UINT2',0,"[1, 8, 8]",[2],b'UINT2',b'auto',b'INT2',387,387,0,0,562,0,1,0
+t2w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT8',0,[178],b'UINT2',0,"[1, 4, 4]",[2],b'UINT2',b'auto',b'INT2',307,307,0,0,349,0,1,0
+t2w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,1,b'INT9',0,[286],b'UINT2',0,"[1, 2, 2]",[2],b'UINT2',b'auto',b'INT2',661,661,0,0,476,0,1,0
+t2w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT7',0,[2],b'UINT2',1,[1],[2],b'INT7',b'auto',b'INT2',275,275,0,0,233,0,1,0
+t2w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,1,1,b'INT14',0,[9216],b'UINT8',0,"[1, 16, 16]",[32],b'UINT4',b'auto',b'INT3',495,495,0,0,549,0,1,0
+t2w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,1,b'INT12',0,[1582],b'UINT4',0,"[1, 8, 8]",[2],b'UINT4',b'auto',b'INT3',724,724,0,0,812,0,1,0
+t2w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT11',0,[178],b'UINT4',0,"[1, 4, 4]",[2],b'UINT4',b'auto',b'INT3',485,485,0,0,547,0,1,0
+t2w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,1,b'INT11',0,[286],b'UINT4',0,"[1, 2, 2]",[2],b'UINT4',b'auto',b'INT3',786,786,0,0,806,0,1,0
+t2w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT11',0,[2],b'UINT4',1,[1],[2],b'INT11',b'auto',b'INT4',277,277,0,0,334,0,1,0
+t2w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,1,1,b'INT18',0,[9216],b'UINT8',0,"[1, 16, 16]",[32],b'UINT8',b'auto',b'INT7',2967,2967,0,0,863,0,1,1
+t2w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,1,b'INT20',0,[1582],b'UINT8',0,"[1, 8, 8]",[2],b'UINT8',b'auto',b'INT8',3587,3587,0,0,1746,0,1,1
+t2w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT19',0,[178],b'UINT8',0,"[1, 4, 4]",[2],b'UINT8',b'auto',b'INT8',3268,3268,0,0,1217,0,1,2
+t2w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,1,b'INT19',0,[286],b'UINT8',0,"[1, 2, 2]",[2],b'UINT8',b'auto',b'INT7',3534,3534,0,0,1739,0,1,1
+t2w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT18',0,[2],b'UINT8',1,[1],[2],b'INT18',b'auto',b'INT7',304,304,0,0,460,0,1,1
