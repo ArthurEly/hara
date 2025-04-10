@@ -1,4 +1,0 @@
-Repo,dataType (bits),inFIFODepths (dimensions flattened),inWidth,outFIFODepths (dimensions flattened),outWidth,shape (dimensions flattened),Total LUTs,Logic LUTs,LUTRAMs,SRLs,FFs,RAMB36,RAMB18,DSP Blocks
-t1w4_50000fps_u,8,2,32,2,144,9216,557,557,0,0,1765,0,0,0
-t1w8_50000fps_u,8,2,32,2,72,9216,489,489,0,0,1696,0,0,0
-t2w2_50000fps_u,2,2,16,32,72,9216,320,320,0,0,938,0,0,0

@@ -3,6 +3,7 @@ import numpy as np
 import os
 import re
 import ast
+from datetime import datetime
 
 def is_listlike_string(val):
     return isinstance(val, str) and val.startswith("[") and val.endswith("]")
@@ -29,17 +30,26 @@ def expand_listlike_columns(df):
     return df
 
 def extract_bitwidth(x):
-    match = re.search(r'(UINT|INT)(\d+)', str(x))
+    print(x)
+    x_str = str(x).upper()
+    if "B'BINARY" in x_str:
+        return 1
+    match = re.search(r'(UINT|INT)(\d+)', x_str)
     return int(match.group(2)) if match else None
 
+
+base_dir = "/home/arthurely/Desktop/finn/hara/data/results_onnx/last_run/"
+
 file_paths = [
-    "./results_onnx/StreamingFIFO_rtl_merged.csv",
-    "./results_onnx/FMPadding_hls_merged.csv",
-    "./results_onnx/ConvolutionInputGenerator_hls_merged.csv",
-    "./results_onnx/MVAU_hls_merged.csv",
-    "./results_onnx/StreamingDataWidthConverter_rtl_merged.csv",
-    "./results_onnx/LabelSelect_hls_merged.csv",
-    "./results_onnx/StreamingDataWidthConverter_hls_merged.csv"
+    f"{base_dir}/StreamingFIFO_rtl_merged.csv",
+    f"{base_dir}/FMPadding_hls_merged.csv",
+    f"{base_dir}/ConvolutionInputGenerator_hls_merged.csv",
+    f"{base_dir}/ConvolutionInputGenerator_rtl_merged.csv",
+    f"{base_dir}/MVAU_hls_merged.csv",
+    f"{base_dir}/LabelSelect_hls_merged.csv",
+    f"{base_dir}/StreamingDataWidthConverter_rtl_merged.csv",
+    f"{base_dir}/StreamingDataWidthConverter_hls_merged.csv",
+    f"{base_dir}/StreamingMaxPool_hls_merged.csv"
 ]
 
 area_cols_to_preserve = [
@@ -159,8 +169,21 @@ summary_df.reset_index(inplace=True)
 print(summary_df)
 
 # Salvar os arquivos limpos
-os.makedirs("./results_cleaned", exist_ok=True)
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+results_dir = f"../data/results_cleaned/run_{timestamp}"
+last_run_dir = "../data/results_cleaned/last_run"
+os.makedirs(results_dir, exist_ok=True)
+os.makedirs(last_run_dir, exist_ok=True)
+
+# Salvar arquivos limpos nas duas pastas
 for name, df in cleaned_dfs.items():
-    df.to_csv(f"./results_cleaned/{name}_cleaned.csv", index=False)
+    for out_dir in [results_dir, last_run_dir]:
+        df.to_csv(f"{out_dir}/{name}_cleaned.csv", index=False)
+        print(f"✅ Salvo: {out_dir}/{name}_cleaned.csv")
+
+# Salvar também o summary
+for out_dir in [results_dir, last_run_dir]:
+    summary_df.to_csv(f"{out_dir}/summary.csv", index=False)
+    print(f"📝 Resumo salvo: {out_dir}/summary.csv")
 
 print("✅ Todos os arquivos limpos foram salvos.")

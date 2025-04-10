@@ -1,0 +1,17 @@
+Repo,NodeName,OpType,Partition,CeilMode,ImgDim,NumChannels,PE,PoolDim,dataType,inFIFODepths,outFIFODepths,Total LUTs,Logic LUTs,LUTRAMs,SRLs,FFs,RAMB36,RAMB18,DSP Blocks
+t4w1a1_100fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,StreamingMaxPool_hls,partition_2,0,"[28, 28]",64,1,"[2, 2]",b'BINARY',[2],[32],364,364,0,0,581,2,0,0
+t4w1a1_100fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,StreamingMaxPool_hls,partition_2,0,"[10, 10]",128,1,"[2, 2]",b'BINARY',[2],[32],638,638,0,0,1083,4,0,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,StreamingMaxPool_hls,partition_2,0,"[28, 28]",64,1,"[2, 2]",b'BINARY',[2],[32],364,364,0,0,581,2,0,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,StreamingMaxPool_hls,partition_2,0,"[10, 10]",128,1,"[2, 2]",b'BINARY',[2],[32],638,638,0,0,1083,4,0,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,StreamingMaxPool_hls,partition_2,0,"[28, 28]",64,1,"[2, 2]",b'BINARY',[2],[32],364,364,0,0,581,2,0,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,StreamingMaxPool_hls,partition_2,0,"[10, 10]",128,1,"[2, 2]",b'BINARY',[2],[32],638,638,0,0,1083,4,0,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,StreamingMaxPool_hls,partition_2,0,"[28, 28]",64,1,"[2, 2]",b'BINARY',[2],[32],364,364,0,0,581,2,0,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,StreamingMaxPool_hls,partition_2,0,"[10, 10]",128,1,"[2, 2]",b'BINARY',[2],[32],638,638,0,0,1083,4,0,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,StreamingMaxPool_hls,partition_2,0,"[28, 28]",64,1,"[2, 2]",b'BINARY',[2],[32],364,364,0,0,581,2,0,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,StreamingMaxPool_hls,partition_2,0,"[10, 10]",128,1,"[2, 2]",b'BINARY',[2],[32],638,638,0,0,1083,4,0,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,StreamingMaxPool_hls,partition_2,0,"[28, 28]",64,1,"[2, 2]",b'BINARY',[2],[32],364,364,0,0,581,2,0,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,StreamingMaxPool_hls,partition_2,0,"[10, 10]",128,1,"[2, 2]",b'BINARY',[2],[32],638,638,0,0,1083,4,0,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,StreamingMaxPool_hls,partition_2,0,"[28, 28]",64,1,"[2, 2]",b'BINARY',[2],[32],364,364,0,0,581,2,0,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,StreamingMaxPool_hls,partition_2,0,"[10, 10]",128,1,"[2, 2]",b'BINARY',[2],[32],638,638,0,0,1083,4,0,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,StreamingMaxPool_hls,partition_2,0,"[28, 28]",64,1,"[2, 2]",b'BINARY',[2],[32],364,364,0,0,581,2,0,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,StreamingMaxPool_hls,partition_2,0,"[10, 10]",128,1,"[2, 2]",b'BINARY',[2],[32],638,638,0,0,1083,4,0,0

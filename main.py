@@ -11,9 +11,9 @@ import argparse
 
 from utils import get_data_fps, get_data_t1t2, split_data
 
-conv_input_path = 'data/results_cleaned/ConvolutionInputGenerator_hls_merged_cleaned.csv'
-mvau_input_path = 'data/results_cleaned/MVAU_hls_merged_cleaned.csv'
-area_summary_path = 'data/results_onnx/area_summary.csv'
+conv_input_path = 'data/results_cleaned/last_run/ConvolutionInputGenerator_hls_merged_cleaned.csv'
+mvau_input_path = 'data/results_cleaned/last_run/MVAU_hls_merged_cleaned.csv'
+area_summary_path = 'data/results_onnx/last_run/area_summary.csv'
 
 def random_forest_wrapper(X_train, y_train, X_test, y_test,
                             output_path, model=None,):

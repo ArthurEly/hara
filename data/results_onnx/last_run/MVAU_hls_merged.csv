@@ -1,0 +1,140 @@
+Repo,NodeName,OpType,Partition,ActVal,MH,MW,PE,SIMD,accDataType,binaryXnorMode,inFIFODepths,inputDataType,noActivation,numInputVectors,outFIFODepths,outputDataType,resType,weightDataType,Total LUTs,Logic LUTs,LUTRAMs,SRLs,FFs,RAMB36,RAMB18,DSP Blocks
+t1w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,4,36,b'INT13',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',3407,3407,0,0,5051,4,0,0
+t1w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,20,b'INT6',0,[2],b'UINT2',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',350,315,35,0,618,0,0,0
+t1w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT12',0,[1022],b'UINT2',1,[1],[2],b'INT12',b'auto',b'INT2',2692,2692,0,0,4382,1,0,0
+t1w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,12,b'INT13',0,[593],b'UINT8',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',737,737,0,0,1177,0,1,0
+t1w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,4,b'INT6',0,[2],b'UINT2',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',273,260,13,0,309,0,0,0
+t1w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT12',0,[338],b'UINT2',1,[1],[2],b'INT12',b'auto',b'INT2',2686,2686,0,0,4382,1,0,0
+t1w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,1,b'INT13',0,[9216],b'UINT8',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',689,689,0,0,1059,0,1,0
+t1w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,1,b'INT6',0,[2],b'UINT2',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',387,387,0,0,562,0,1,0
+t1w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT12',0,[32],b'UINT2',1,[1],[2],b'INT12',b'auto',b'INT2',307,307,0,0,349,0,1,0
+t1w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,5,18,b'INT14',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',4657,4657,0,0,4382,4,0,0
+t1w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,20,b'INT9',0,[2],b'UINT4',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',740,682,58,0,1058,0,0,0
+t1w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT14',0,[1022],b'UINT4',1,[1],[2],b'INT14',b'auto',b'INT4',4223,4223,0,0,8585,2,0,0
+t1w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,12,b'INT14',0,[593],b'UINT8',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',1059,1059,0,0,1285,0,1,0
+t1w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,4,b'INT9',0,[2],b'UINT4',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',399,399,0,0,449,0,1,0
+t1w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT14',0,[338],b'UINT4',1,[1],[2],b'INT14',b'auto',b'INT4',4213,4213,0,0,8585,2,0,0
+t1w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,1,b'INT14',0,[9216],b'UINT8',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',507,507,0,0,546,0,1,0
+t1w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,1,b'INT9',0,[2],b'UINT4',0,"[1, 16, 16]",[2],b'UINT4',b'auto',b'INT3',350,350,0,0,303,0,1,0
+t1w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT14',0,[32],b'UINT4',1,[1],[2],b'INT14',b'auto',b'INT4',4224,4224,0,0,8585,2,0,0
+t1w8_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,10,9,b'INT18',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT7',27281,27281,0,0,5294,9,0,100
+t1w8_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,20,b'INT18',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT8',3078,3078,0,0,1389,2,1,22
+t1w8_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT22',0,[1022],b'UINT8',1,[1],[2],b'INT22',b'auto',b'INT8',6172,6172,0,0,16931,4,0,2
+t1w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,12,b'INT18',0,[593],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT7',3267,3267,0,0,1363,1,1,12
+t1w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,4,b'INT18',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT8',2914,2914,0,0,894,0,1,4
+t1w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT22',0,[338],b'UINT8',1,[1],[2],b'INT22',b'auto',b'INT8',6182,6182,0,0,16931,4,0,2
+t1w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,20,36,1,1,b'INT18',0,[9216],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT7',2993,2993,0,0,863,0,1,1
+t1w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,20,1,1,b'INT18',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT8',b'auto',b'INT8',2912,2912,0,0,728,0,1,1
+t1w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,6,2048,1,2,b'INT22',0,[32],b'UINT8',1,[1],[2],b'INT22',b'auto',b'INT8',6176,6176,0,0,16931,4,0,2
+t2w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,2,36,b'INT13',0,[2],b'UINT8',0,"[1, 16, 16]",[2],b'UINT2',b'auto',b'INT2',1919,1919,0,0,3261,2,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,36,b'INT9',0,[32],b'UINT2',0,"[1, 8, 8]",[32],b'UINT2',b'auto',b'INT2',819,819,0,0,1393,1,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT8',0,[576],b'UINT2',0,"[1, 4, 4]",[32],b'UINT2',b'auto',b'INT2',305,305,0,0,349,0,1,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,2,b'INT9',0,[142],b'UINT2',0,"[1, 2, 2]",[2],b'UINT2',b'auto',b'INT2',421,421,0,0,492,0,1,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT7',0,[2],b'UINT2',1,[1],[2],b'INT7',b'auto',b'INT2',275,275,0,0,233,0,1,0
+t2w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,1,9,b'INT13',0,[870],b'UINT8',0,"[1, 16, 16]",[148],b'UINT2',b'auto',b'INT2',689,689,0,0,1059,0,1,0
+t2w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,4,b'INT9',0,[682],b'UINT2',0,"[1, 8, 8]",[2],b'UINT2',b'auto',b'INT2',387,387,0,0,562,0,1,0
+t2w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT8',0,[178],b'UINT2',0,"[1, 4, 4]",[2],b'UINT2',b'auto',b'INT2',307,307,0,0,349,0,1,0
+t2w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,1,b'INT9',0,[286],b'UINT2',0,"[1, 2, 2]",[2],b'UINT2',b'auto',b'INT2',661,661,0,0,476,0,1,0
+t2w2_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT7',0,[2],b'UINT2',1,[1],[2],b'INT7',b'auto',b'INT2',275,275,0,0,233,0,1,0
+t2w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,1,1,b'INT13',0,[9216],b'UINT8',0,"[1, 16, 16]",[32],b'UINT2',b'auto',b'INT2',377,377,0,0,513,0,1,0
+t2w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,1,b'INT9',0,[1582],b'UINT2',0,"[1, 8, 8]",[2],b'UINT2',b'auto',b'INT2',669,669,0,0,480,0,1,0
+t2w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT8',0,[178],b'UINT2',0,"[1, 4, 4]",[2],b'UINT2',b'auto',b'INT2',306,306,0,0,349,0,1,0
+t2w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,1,b'INT9',0,[286],b'UINT2',0,"[1, 2, 2]",[2],b'UINT2',b'auto',b'INT2',662,662,0,0,476,0,1,0
+t2w2_500fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT7',0,[2],b'UINT2',1,[1],[2],b'INT7',b'auto',b'INT2',276,276,0,0,233,0,1,0
+t2w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,4,18,b'INT14',0,[2],b'UINT8',0,"[1, 16, 16]",[32],b'UINT4',b'auto',b'INT3',3800,3800,0,0,3734,3,0,0
+t2w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,2,18,b'INT12',0,[46],b'UINT4',0,"[1, 8, 8]",[2],b'UINT4',b'auto',b'INT3',1486,1486,0,0,2126,2,0,0
+t2w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT11',0,[576],b'UINT4',0,"[1, 4, 4]",[32],b'UINT4',b'auto',b'INT3',485,485,0,0,547,0,1,0
+t2w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,2,b'INT11',0,[142],b'UINT4',0,"[1, 2, 2]",[2],b'UINT4',b'auto',b'INT3',678,678,0,0,833,0,1,0
+t2w4_50000fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT11',0,[2],b'UINT4',1,[1],[2],b'INT11',b'auto',b'INT4',277,277,0,0,334,0,1,0
+t2w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,1,9,b'INT14',0,[870],b'UINT8',0,"[1, 16, 16]",[147],b'UINT4',b'auto',b'INT3',959,959,0,0,1157,0,1,0
+t2w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,4,b'INT12',0,[682],b'UINT4',0,"[1, 8, 8]",[2],b'UINT4',b'auto',b'INT3',617,617,0,0,948,0,1,0
+t2w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT11',0,[178],b'UINT4',0,"[1, 4, 4]",[2],b'UINT4',b'auto',b'INT3',487,487,0,0,547,0,1,0
+t2w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,1,b'INT11',0,[286],b'UINT4',0,"[1, 2, 2]",[2],b'UINT4',b'auto',b'INT3',784,784,0,0,806,0,1,0
+t2w4_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT11',0,[2],b'UINT4',1,[1],[2],b'INT11',b'auto',b'INT4',277,277,0,0,334,0,1,0
+t2w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,1,1,b'INT14',0,[9216],b'UINT8',0,"[1, 16, 16]",[32],b'UINT4',b'auto',b'INT3',495,495,0,0,549,0,1,0
+t2w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,1,b'INT12',0,[1582],b'UINT4',0,"[1, 8, 8]",[2],b'UINT4',b'auto',b'INT3',724,724,0,0,812,0,1,0
+t2w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT11',0,[178],b'UINT4',0,"[1, 4, 4]",[2],b'UINT4',b'auto',b'INT3',485,485,0,0,547,0,1,0
+t2w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,1,b'INT11',0,[286],b'UINT4',0,"[1, 2, 2]",[2],b'UINT4',b'auto',b'INT3',786,786,0,0,806,0,1,0
+t2w4_500fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT11',0,[2],b'UINT4',1,[1],[2],b'INT11',b'auto',b'INT4',277,277,0,0,334,0,1,0
+t2w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,1,9,b'INT18',0,[870],b'UINT8',0,"[1, 16, 16]",[147],b'UINT8',b'auto',b'INT7',3253,3253,0,0,1365,1,0,8
+t2w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,4,b'INT20',0,[682],b'UINT8',0,"[1, 8, 8]",[2],b'UINT8',b'auto',b'INT8',3496,3496,0,0,1895,0,1,4
+t2w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT19',0,[178],b'UINT8',0,"[1, 4, 4]",[2],b'UINT8',b'auto',b'INT8',3252,3252,0,0,1217,0,1,2
+t2w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,1,b'INT19',0,[286],b'UINT8',0,"[1, 2, 2]",[2],b'UINT8',b'auto',b'INT7',3586,3586,0,0,1739,0,1,1
+t2w8_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT18',0,[2],b'UINT8',1,[1],[2],b'INT18',b'auto',b'INT7',303,303,0,0,460,0,1,1
+t2w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,16,36,1,1,b'INT18',0,[9216],b'UINT8',0,"[1, 16, 16]",[32],b'UINT8',b'auto',b'INT7',2967,2967,0,0,863,0,1,1
+t2w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,8,144,1,1,b'INT20',0,[1582],b'UINT8',0,"[1, 8, 8]",[2],b'UINT8',b'auto',b'INT8',3587,3587,0,0,1746,0,1,1
+t2w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,16,72,1,2,b'INT19',0,[178],b'UINT8',0,"[1, 4, 4]",[2],b'UINT8',b'auto',b'INT8',3268,3268,0,0,1217,0,1,2
+t2w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,8,144,1,1,b'INT19',0,[286],b'UINT8',0,"[1, 2, 2]",[2],b'UINT8',b'auto',b'INT7',3534,3534,0,0,1739,0,1,1
+t2w8_500fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,6,32,1,1,b'INT18',0,[2],b'UINT8',1,[1],[2],b'INT18',b'auto',b'INT7',304,304,0,0,460,0,1,1
+t4w1a1_100fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,64,27,1,3,b'INT13',0,[8100],b'INT8',0,"[1, 30, 30]",[2],b'BINARY',b'auto',b'INT2',380,380,0,0,593,0,1,0
+t4w1a1_100fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,64,576,1,32,b'INT10',1,[12580],b'BINARY',0,"[1, 28, 28]",[2],b'BINARY',b'auto',b'BINARY',519,519,0,0,971,2,0,0
+t4w1a1_100fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,128,576,1,12,b'INT10',1,[1294],b'BINARY',0,"[1, 12, 12]",[2],b'BINARY',b'auto',b'BINARY',446,446,0,0,811,3,1,0
+t4w1a1_100fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,128,1152,1,16,b'INT11',1,[1725],b'BINARY',0,"[1, 10, 10]",[2],b'BINARY',b'auto',b'BINARY',664,664,0,0,1442,8,1,0
+t4w1a1_100fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,256,1152,1,3,b'INT11',1,[1918],b'BINARY',0,"[1, 3, 3]",[2],b'BINARY',b'auto',b'BINARY',1988,1988,0,0,1369,9,1,0
+t4w1a1_100fps_u,StreamingDataflowPartition_1_MVAU_hls_5,MVAU_hls,partition_2,0,256,2304,1,3,b'INT12',1,[136],b'BINARY',0,"[1, 1, 1]",[2],b'BINARY',b'auto',b'BINARY',3285,3285,0,0,2539,18,1,0
+t4w1a1_100fps_u,StreamingDataflowPartition_1_MVAU_hls_6,MVAU_hls,partition_2,0,512,256,1,1,b'INT9',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',548,548,0,0,429,4,1,0
+t4w1a1_100fps_u,StreamingDataflowPartition_1_MVAU_hls_7,MVAU_hls,partition_2,0,512,512,1,1,b'INT10',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',1047,1047,0,0,698,8,1,0
+t4w1a1_100fps_u,StreamingDataflowPartition_1_MVAU_hls_8,MVAU_hls,partition_2,0,10,512,1,1,b'INT16',1,[2],b'BINARY',1,[1],[2],b'INT16',b'auto',b'BINARY',979,979,0,0,727,1,0,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,64,27,4,27,b'INT13',0,[2],b'INT8',0,"[1, 30, 30]",[2],b'BINARY',b'auto',b'INT2',2615,2615,0,0,3920,3,0,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,64,576,16,72,b'INT10',1,[32],b'BINARY',0,"[1, 28, 28]",[2],b'BINARY',b'auto',b'BINARY',7129,7129,0,0,8075,32,0,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,128,576,8,72,b'INT10',1,[32],b'BINARY',0,"[1, 12, 12]",[2],b'BINARY',b'auto',b'BINARY',2067,2067,0,0,2800,8,0,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,128,1152,8,72,b'INT11',1,[382],b'BINARY',0,"[1, 10, 10]",[2],b'BINARY',b'auto',b'BINARY',3881,3881,0,0,5358,16,0,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,256,1152,1,96,b'INT11',1,[55],b'BINARY',0,"[1, 3, 3]",[2],b'BINARY',b'auto',b'BINARY',1135,1135,0,0,1916,8,2,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_MVAU_hls_5,MVAU_hls,partition_2,0,256,2304,1,3,b'INT12',1,[766],b'BINARY',0,"[1, 1, 1]",[2],b'BINARY',b'auto',b'BINARY',3286,3286,0,0,2539,18,1,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_MVAU_hls_6,MVAU_hls,partition_2,0,512,256,1,8,b'INT9',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',324,324,0,0,464,4,1,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_MVAU_hls_7,MVAU_hls,partition_2,0,512,512,1,16,b'INT10',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',426,426,0,0,793,8,1,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_MVAU_hls_8,MVAU_hls,partition_2,0,10,512,1,1,b'INT16',1,[2],b'BINARY',1,[1],[2],b'INT16',b'auto',b'BINARY',979,979,0,0,727,1,0,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,64,27,4,27,b'INT13',0,[2],b'INT8',0,"[1, 30, 30]",[2],b'BINARY',b'auto',b'INT2',2615,2615,0,0,3920,3,0,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,64,576,32,72,b'INT10',1,[2],b'BINARY',0,"[1, 28, 28]",[2],b'BINARY',b'auto',b'BINARY',7129,7129,0,0,8075,32,0,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,128,576,8,72,b'INT10',1,[32],b'BINARY',0,"[1, 12, 12]",[2],b'BINARY',b'auto',b'BINARY',2067,2067,0,0,2800,8,0,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,128,1152,16,72,b'INT11',1,[32],b'BINARY',0,"[1, 10, 10]",[2],b'BINARY',b'auto',b'BINARY',3881,3881,0,0,5358,16,0,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,256,1152,2,72,b'INT11',1,[63],b'BINARY',0,"[1, 3, 3]",[2],b'BINARY',b'auto',b'BINARY',1135,1135,0,0,1916,8,2,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_MVAU_hls_5,MVAU_hls,partition_2,0,256,2304,1,3,b'INT12',1,[766],b'BINARY',0,"[1, 1, 1]",[2],b'BINARY',b'auto',b'BINARY',3286,3286,0,0,2539,18,1,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_MVAU_hls_6,MVAU_hls,partition_2,0,512,256,1,8,b'INT9',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',324,324,0,0,464,4,1,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_MVAU_hls_7,MVAU_hls,partition_2,0,512,512,1,16,b'INT10',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',426,426,0,0,793,8,1,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_MVAU_hls_8,MVAU_hls,partition_2,0,10,512,1,1,b'INT16',1,[2],b'BINARY',1,[1],[2],b'INT16',b'auto',b'BINARY',979,979,0,0,727,1,0,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,64,27,4,27,b'INT13',0,[783],b'INT8',0,"[1, 30, 30]",[2],b'BINARY',b'auto',b'INT2',2615,2615,0,0,3920,3,0,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,64,576,32,72,b'INT10',1,[2],b'BINARY',0,"[1, 28, 28]",[2],b'BINARY',b'auto',b'BINARY',7129,7129,0,0,8075,32,0,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,128,576,8,72,b'INT10',1,[32],b'BINARY',0,"[1, 12, 12]",[2],b'BINARY',b'auto',b'BINARY',2067,2067,0,0,2800,8,0,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,128,1152,16,72,b'INT11',1,[32],b'BINARY',0,"[1, 10, 10]",[2],b'BINARY',b'auto',b'BINARY',3881,3881,0,0,5358,16,0,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,256,1152,2,72,b'INT11',1,[63],b'BINARY',0,"[1, 3, 3]",[2],b'BINARY',b'auto',b'BINARY',1135,1135,0,0,1916,8,2,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_MVAU_hls_5,MVAU_hls,partition_2,0,256,2304,1,3,b'INT12',1,[766],b'BINARY',0,"[1, 1, 1]",[2],b'BINARY',b'auto',b'BINARY',3286,3286,0,0,2539,18,1,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_MVAU_hls_6,MVAU_hls,partition_2,0,512,256,1,8,b'INT9',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',324,324,0,0,464,4,1,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_MVAU_hls_7,MVAU_hls,partition_2,0,512,512,1,16,b'INT10',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',426,426,0,0,793,8,1,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_MVAU_hls_8,MVAU_hls,partition_2,0,10,512,1,1,b'INT16',1,[2],b'BINARY',1,[1],[2],b'INT16',b'auto',b'BINARY',979,979,0,0,727,1,0,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,64,27,4,27,b'INT13',0,[783],b'INT8',0,"[1, 30, 30]",[2],b'BINARY',b'auto',b'INT2',2615,2615,0,0,3920,3,0,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,64,576,32,72,b'INT10',1,[2],b'BINARY',0,"[1, 28, 28]",[2],b'BINARY',b'auto',b'BINARY',7129,7129,0,0,8075,32,0,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,128,576,8,72,b'INT10',1,[656],b'BINARY',0,"[1, 12, 12]",[32],b'BINARY',b'auto',b'BINARY',2067,2067,0,0,2800,8,0,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,128,1152,16,72,b'INT11',1,[32],b'BINARY',0,"[1, 10, 10]",[2],b'BINARY',b'auto',b'BINARY',3881,3881,0,0,5358,16,0,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,256,1152,2,72,b'INT11',1,[63],b'BINARY',0,"[1, 3, 3]",[2],b'BINARY',b'auto',b'BINARY',1135,1135,0,0,1916,8,2,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_5,MVAU_hls,partition_2,0,256,2304,1,3,b'INT12',1,[766],b'BINARY',0,"[1, 1, 1]",[2],b'BINARY',b'auto',b'BINARY',3286,3286,0,0,2539,18,1,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_6,MVAU_hls,partition_2,0,512,256,1,8,b'INT9',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',324,324,0,0,464,4,1,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_7,MVAU_hls,partition_2,0,512,512,1,16,b'INT10',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',426,426,0,0,793,8,1,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_MVAU_hls_8,MVAU_hls,partition_2,0,10,512,1,1,b'INT16',1,[2],b'BINARY',1,[1],[2],b'INT16',b'auto',b'BINARY',979,979,0,0,727,1,0,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,64,27,4,27,b'INT13',0,[783],b'INT8',0,"[1, 30, 30]",[2],b'BINARY',b'auto',b'INT2',2615,2615,0,0,3920,3,0,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,64,576,32,72,b'INT10',1,[2],b'BINARY',0,"[1, 28, 28]",[2],b'BINARY',b'auto',b'BINARY',7129,7129,0,0,8075,32,0,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,128,576,16,72,b'INT10',1,[32],b'BINARY',0,"[1, 12, 12]",[2],b'BINARY',b'auto',b'BINARY',2067,2067,0,0,2800,8,0,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,128,1152,16,72,b'INT11',1,[32],b'BINARY',0,"[1, 10, 10]",[2],b'BINARY',b'auto',b'BINARY',3881,3881,0,0,5358,16,0,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,256,1152,4,72,b'INT11',1,[32],b'BINARY',0,"[1, 3, 3]",[2],b'BINARY',b'auto',b'BINARY',1135,1135,0,0,1916,8,2,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_MVAU_hls_5,MVAU_hls,partition_2,0,256,2304,1,3,b'INT12',1,[766],b'BINARY',0,"[1, 1, 1]",[2],b'BINARY',b'auto',b'BINARY',3286,3286,0,0,2539,18,1,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_MVAU_hls_6,MVAU_hls,partition_2,0,512,256,1,8,b'INT9',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',324,324,0,0,464,4,1,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_MVAU_hls_7,MVAU_hls,partition_2,0,512,512,1,16,b'INT10',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',426,426,0,0,793,8,1,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_MVAU_hls_8,MVAU_hls,partition_2,0,10,512,1,1,b'INT16',1,[2],b'BINARY',1,[1],[2],b'INT16',b'auto',b'BINARY',979,979,0,0,727,1,0,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,64,27,1,27,b'INT13',0,[900],b'INT8',0,"[1, 30, 30]",[632],b'BINARY',b'auto',b'INT2',2615,2615,0,0,3920,3,0,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,64,576,4,72,b'INT10',1,[32],b'BINARY',0,"[1, 28, 28]",[2],b'BINARY',b'auto',b'BINARY',7129,7129,0,0,8075,32,0,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,128,576,1,96,b'INT10',1,[118],b'BINARY',0,"[1, 12, 12]",[3504],b'BINARY',b'auto',b'BINARY',2067,2067,0,0,2800,8,0,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,128,1152,2,72,b'INT11',1,[32],b'BINARY',0,"[1, 10, 10]",[2],b'BINARY',b'auto',b'BINARY',3881,3881,0,0,5358,16,0,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,256,1152,1,24,b'INT11',1,[238],b'BINARY',0,"[1, 3, 3]",[2],b'BINARY',b'auto',b'BINARY',1135,1135,0,0,1916,8,2,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_MVAU_hls_5,MVAU_hls,partition_2,0,256,2304,1,3,b'INT12',1,[766],b'BINARY',0,"[1, 1, 1]",[168],b'BINARY',b'auto',b'BINARY',3286,3286,0,0,2539,18,1,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_MVAU_hls_6,MVAU_hls,partition_2,0,512,256,1,1,b'INT9',1,[168],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',324,324,0,0,464,4,1,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_MVAU_hls_7,MVAU_hls,partition_2,0,512,512,1,2,b'INT10',1,[125],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',426,426,0,0,793,8,1,0
+t4w1a1_700fps_u,StreamingDataflowPartition_1_MVAU_hls_8,MVAU_hls,partition_2,0,10,512,1,1,b'INT16',1,[2],b'BINARY',1,[1],[2],b'INT16',b'auto',b'BINARY',979,979,0,0,727,1,0,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_MVAU_hls_0,MVAU_hls,partition_2,0,64,27,8,27,b'INT13',0,[2],b'INT8',0,"[1, 30, 30]",[2],b'BINARY',b'auto',b'INT2',2615,2615,0,0,3920,3,0,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_MVAU_hls_1,MVAU_hls,partition_2,0,64,576,32,72,b'INT10',1,[4694],b'BINARY',0,"[1, 28, 28]",[2],b'BINARY',b'auto',b'BINARY',7129,7129,0,0,8075,32,0,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_MVAU_hls_2,MVAU_hls,partition_2,0,128,576,16,72,b'INT10',1,[32],b'BINARY',0,"[1, 12, 12]",[2],b'BINARY',b'auto',b'BINARY',2067,2067,0,0,2800,8,0,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_MVAU_hls_3,MVAU_hls,partition_2,0,128,1152,16,72,b'INT11',1,[536],b'BINARY',0,"[1, 10, 10]",[2],b'BINARY',b'auto',b'BINARY',3881,3881,0,0,5358,16,0,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_MVAU_hls_4,MVAU_hls,partition_2,0,256,1152,4,72,b'INT11',1,[32],b'BINARY',0,"[1, 3, 3]",[2],b'BINARY',b'auto',b'BINARY',1135,1135,0,0,1916,8,2,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_MVAU_hls_5,MVAU_hls,partition_2,0,256,2304,1,3,b'INT12',1,[766],b'BINARY',0,"[1, 1, 1]",[2],b'BINARY',b'auto',b'BINARY',3286,3286,0,0,2539,18,1,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_MVAU_hls_6,MVAU_hls,partition_2,0,512,256,1,16,b'INT9',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',324,324,0,0,464,4,1,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_MVAU_hls_7,MVAU_hls,partition_2,0,512,512,1,32,b'INT10',1,[2],b'BINARY',0,[1],[2],b'BINARY',b'auto',b'BINARY',426,426,0,0,793,8,1,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_MVAU_hls_8,MVAU_hls,partition_2,0,10,512,1,1,b'INT16',1,[2],b'BINARY',1,[1],[2],b'INT16',b'auto',b'BINARY',979,979,0,0,727,1,0,0

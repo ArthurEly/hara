@@ -1,0 +1,12 @@
+Repo,NodeName,dataType (bits),inFIFODepths (dimensions flattened),inWidth,outFIFODepths (dimensions flattened),outWidth,shape (dimensions flattened),Total LUTs,Logic LUTs,LUTRAMs,SRLs,FFs,RAMB36,RAMB18,DSP Blocks
+t1w4_50000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,8,2,32,2,144,9216,557,557,0,0,1765,0,0,0
+t1w8_50000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,8,2,32,2,72,9216,489,489,0,0,1696,0,0,0
+t2w2_50000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,2,2,16,32,72,9216,320,320,0,0,938,0,0,0
+t2w4_50000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,8,2,32,2,144,9216,558,558,0,0,1765,0,0,0
+t2w4_50000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_1,4,2,32,46,72,9216,483,483,0,0,1694,0,0,0
+t4w1a1_3500fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,1,2,16,32,72,451584,498,498,0,0,1701,0,0,0
+t4w1a1_4000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,1,2,32,2,72,451584,498,498,0,0,1701,0,0,0
+t4w1a1_4500fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,1,2,32,2,72,451584,498,498,0,0,1701,0,0,0
+t4w1a1_5000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,1,2,32,2,72,451584,498,498,0,0,1701,0,0,0
+t4w1a1_6000fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,1,2,32,2,72,451584,498,498,0,0,1701,0,0,0
+t4w1a1_7500fps_u,StreamingDataflowPartition_1_StreamingDataWidthConverter_hls_0,1,2,64,4694,72,451584,498,498,0,0,1701,0,0,0
