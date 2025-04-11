@@ -17,6 +17,7 @@ def generate_hardware(build_dir, model, hw_name, steps_list, folding_config_path
     cfg_estimates = build.DataflowBuildConfig(
         output_dir=estimates_output_dir,
         target_fps=target_fps,
+        folding_config_file= folding_config_path,
         synth_clk_period_ns=10,
         board="Pynq-Z1",
         shell_flow_type=build_cfg.ShellFlowType.VIVADO_ZYNQ,
