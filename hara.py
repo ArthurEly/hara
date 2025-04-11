@@ -94,6 +94,50 @@ def tail_log(log_path):
             else:
                 time.sleep(0.2)  # Espera um pouco por novas linhas
 
+import threading
+
+def run_and_capture(args, timeout_sec=300):
+    from io import StringIO
+    import sys
+
+    output_log = StringIO()
+
+    print(f"🛠️  [BUILD] Rodando subprocesso para {args[-1]}...")
+
+    env = os.environ.copy()
+    env["PYTHONBREAKPOINT"] = "0"
+
+    with subprocess.Popen(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,  # <<<< aqui
+        text=True,
+        bufsize=1,
+        env=env  # <<<<< isso aqui evita entrar no PDB
+    ) as proc:
+        def monitor_output():
+            for line in proc.stdout:
+                print("----------------------")
+                print(line, end='')
+                output_log.write(line)
+
+        t = threading.Thread(target=monitor_output)
+        t.start()
+        t.join(timeout=timeout_sec)
+
+        if t.is_alive():
+            proc.kill()
+            raise RuntimeError("Build travado ou demorando demais")
+
+    full_output = output_log.getvalue()
+
+    if "Traceback" in full_output or "ValueError" in full_output:
+        raise RuntimeError("Erro detectado no build")
+
+    return full_output
+
+
 for tp in topologies:
     for quant in tp['quant']:
         # --- First run | Ainda precisa de revisão ---
@@ -104,7 +148,7 @@ for tp in topologies:
             has_error = False
             while not has_error:
                 print(f"\n🚀 [FIRST RUN] {first_hw_name} (run={run})")
-                build_hardware(
+                utils.build_hardware(
                     topology=tp['id'],
                     target_fps=fps_first,
                     topology_class=tp['tp_class'],
@@ -198,31 +242,10 @@ for tp in topologies:
                 json.dump(folding_hara, f, indent=2)
 
             try:
-                print(f"🛠️  [BUILD] Rodando subprocesso para {hw_name_hara}...")
-                result = subprocess.run(
-                    args,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    check=False  # deixa ele continuar mesmo com erro
-                )
-                
-                print(result.stdout)
-                if "Traceback" in result.stdout or "ValueError" in result.stdout:
-                    raise RuntimeError("Erro detectado no build")
-
-                #utils.build_hardware(
-                #    build_dir=build_dir,
-                #    topology=tp['id'],
-                #    target_fps=config['hara']['target_fps'],
-                #    folding_file=folding_path_hara,
-                #    topology_class=tp['tp_class'],
-                #    quant=quant,
-                #    steps=config['hara']['steps'],
-                #    run=run,
-                #    hw_name=hw_name_hara
-                #)
-
+                try:
+                    run_and_capture(args)
+                except RuntimeError as e:
+                    print(f"[✗] Subprocesso falhou: {e}")
 
                 # sucesso: reset contador de erros
                 consecutive_errors = 0
