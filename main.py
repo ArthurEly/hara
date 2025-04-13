@@ -2,6 +2,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import GridSearchCV
+from sklearn.neural_network import MLPRegressor
+from xgboost import XGBRegressor
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -15,14 +17,11 @@ conv_input_path = 'data/results_cleaned/last_run/ConvolutionInputGenerator_hls_m
 mvau_input_path = 'data/results_cleaned/last_run/MVAU_hls_merged_cleaned.csv'
 area_summary_path = 'data/results_onnx/last_run/area_summary.csv'
 
-def random_forest_wrapper(X_train, y_train, X_test, y_test,
-                            output_path, model=None,):
+def model_wrapper(X_train, y_train, X_test, y_test,
+                            output_path, model=None, flag=None):
     """
-    Wrapper function for Random Forest regression.
+    Wrapper function for ML models.
     """
-    if model is None:
-        model = MultiOutputRegressor(RandomForestRegressor(n_estimators=100, random_state=42, max_depth=10))
-
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
@@ -31,10 +30,16 @@ def random_forest_wrapper(X_train, y_train, X_test, y_test,
     r2 = r2_score(y_test, y_pred)
 
     # pred vs actual
-    df_results = pd.DataFrame({
-        'Actual_Total_LUTs': y_test.values.flatten(),
+    if flag == 'flattened':
+        df_results = pd.DataFrame({
+        'Actual_Total_LUTs': y_test.flatten(),
         'Pred_Total_LUTs': y_pred.flatten()
-    })
+        })
+    else:
+        df_results = pd.DataFrame({
+            'Actual_Total_LUTs': y_test.values.flatten(),
+            'Pred_Total_LUTs': y_pred.flatten()
+        })
     
     # save evaluation metrics
     metrics_file = os.path.join(output_path, 'metrics.txt')
@@ -77,26 +82,42 @@ def random_forest_wrapper(X_train, y_train, X_test, y_test,
     plt.close()
     print(f"Plot saved to {plot_file}")
 
-def tuning_rf(x_train, y_train, output_path):
+def tuning_model(x_train, y_train, output_path, model):
     """
-    Perform hyperparameter tuning for RandomForestRegressor using GridSearchCV.
+    Perform hyperparameter tuning for ML models using GridSearchCV.
     """
-    print("Tuning Random Forest with GridSearchCV...")
-    param_grid = {
-    'estimator__n_estimators': [100, 300, 500],
-    'estimator__max_depth': [10, 20, 30, None],
-    'estimator__min_samples_split': [2, 5, 10],
-    'estimator__min_samples_leaf': [1, 2, 4],
-    'estimator__max_features': ['sqrt', 'log2', None]
-    }
 
-    base_model = MultiOutputRegressor(RandomForestRegressor(random_state=42))
+    print(f"Tuning {model} with GridSearchCV...")
+
+    if(model == 'random_forest'):
+        param_grid = {
+        'estimator__n_estimators': [100, 300, 500],
+        'estimator__max_depth': [10, 20, 30, None],
+        'estimator__min_samples_split': [2, 5, 10],
+        'estimator__min_samples_leaf': [1, 2, 4],
+        'estimator__max_features': ['sqrt', 'log2', None]
+        }
+
+        base_model = MultiOutputRegressor(RandomForestRegressor(random_state=42))
+
+    if(model == 'xgboost'):
+        param_grid = {
+        'estimator__n_estimators': [100, 200, 300],
+        'estimator__max_depth': [3, 6, 10],
+        'estimator__learning_rate': [0.01, 0.1, 0.2],
+        'estimator__subsample': [0.8, 1.0],
+        'estimator__colsample_bytree': [0.8, 1.0],
+        'estimator__reg_alpha': [0, 0.1, 1],
+        'estimator__reg_lambda': [1, 1.5, 2]
+        }
+        base_model = MultiOutputRegressor(XGBRegressor(objective='reg:squarederror', random_state=42))
+
     grid_search = GridSearchCV(estimator=base_model,
-                               param_grid=param_grid,
-                               cv=3,
-                               n_jobs=-1,
-                               scoring='neg_mean_squared_error',
-                               verbose=1)
+                            param_grid=param_grid,
+                            cv=3,
+                            n_jobs=-1,
+                            scoring='neg_mean_squared_error',
+                            verbose=1)
 
     grid_search.fit(x_train, y_train)
     best_params_file = os.path.join(output_path, 'best_params.json')
@@ -105,14 +126,26 @@ def tuning_rf(x_train, y_train, output_path):
     print(f"Best parameters saved to {best_params_file}")
     return grid_search.best_estimator_
 
+def create_nn_model(X_train):
+    """
+    Create a simple feedforward neural network model.
+    """
+
+    model = MLPRegressor(hidden_layer_sizes=(100, 50),
+                        activation='relu',
+                        solver='adam',
+                        max_iter=500,
+                        random_state=42)
+    return model
+
 
 def main():
     parser = argparse.ArgumentParser(description='HARA')
     
     parser.add_argument('--input', type=str, help='Input CSV file path', default=area_summary_path)
     parser.add_argument('--output', type=str, help='Output CSV file path', default='results/')
-    parser.add_argument('--model', type=str, help='Model type', default='random_forest')
-    parser.add_argument('--split', type=str, help='Split type', default='500fps')
+    parser.add_argument('--model', type=str, help='Model type', default='neural_network')
+    parser.add_argument('--split', type=str, help='Split type', default='50000fps')
 
     args = parser.parse_args()
 
@@ -126,10 +159,20 @@ def main():
     X_test, y_test = split_data(test, ['Total LUTs'])
 
     if args.model == 'random_forest':
-        best_model = tuning_rf(X_train, y_train, args.output)
-        random_forest_wrapper(X_train, y_train, X_test, y_test, args.output, model=best_model)
+        best_model = tuning_model(X_train, y_train, args.output, args.model)
+        model_wrapper(X_train, y_train, X_test, y_test, args.output, model=best_model)
+
+    if args.model == 'xgboost':
+        best_model = tuning_model(X_train, y_train, args.output, args.model)
+        model_wrapper(X_train, y_train, X_test, y_test, args.output, model=best_model)
+
+    if args.model == 'neural_network':
+        y_train = y_train.values.ravel()
+        y_test = y_test.values.ravel()
+        network = create_nn_model(X_train)
+        model_wrapper(X_train, y_train, X_test, y_test, args.output, model=network, flag ='flattened')
     else:
-        print(f"Model {args.model} not recognized. Please use 'random_forest'")
+        print(f"Model {args.model} not recognized.")
     
 if __name__ == "__main__":
     main()

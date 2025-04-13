@@ -5,6 +5,7 @@ joblib==1.4.2
 kiwisolver==1.4.8
 matplotlib==3.10.1
 numpy==2.2.4
+nvidia-nccl-cu12==2.26.2.post1
 onnx==1.17.0
 packaging==24.2
 pandas==2.2.3
@@ -18,3 +19,4 @@ scipy==1.15.2
 six==1.17.0
 threadpoolctl==3.6.0
 tzdata==2025.2
+xgboost==3.0.0
