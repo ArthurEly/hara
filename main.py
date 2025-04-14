@@ -17,8 +17,9 @@ conv_input_path = 'data/results_cleaned/last_run/ConvolutionInputGenerator_hls_m
 mvau_input_path = 'data/results_cleaned/last_run/MVAU_hls_merged_cleaned.csv'
 area_summary_path = 'data/results_onnx/last_run/area_summary.csv'
 
+
 def model_wrapper(X_train, y_train, X_test, y_test,
-                            output_path, model=None, flag=None):
+                            output_path, targets, model=None, flag=None):
     """
     Wrapper function for ML models.
     """
@@ -30,16 +31,14 @@ def model_wrapper(X_train, y_train, X_test, y_test,
     r2 = r2_score(y_test, y_pred)
 
     # pred vs actual
-    if flag == 'flattened':
-        df_results = pd.DataFrame({
-        'Actual_Total_LUTs': y_test.flatten(),
-        'Pred_Total_LUTs': y_pred.flatten()
-        })
-    else:
-        df_results = pd.DataFrame({
-            'Actual_Total_LUTs': y_test.values.flatten(),
-            'Pred_Total_LUTs': y_pred.flatten()
-        })
+    df_results = pd.DataFrame(y_test.values, columns=[f'Actual_{t}' for t in targets])
+    pred_df = pd.DataFrame(y_pred, columns=[f'Pred_{t}' for t in targets])
+    df_results = pd.concat([df_results, pred_df], axis=1)
+
+    # save results
+    output_file = os.path.join(output_path, 'output.csv')
+    df_results.to_csv(output_file, index=False)
+    print(f"Results saved to {output_file}")
     
     # save evaluation metrics
     metrics_file = os.path.join(output_path, 'metrics.txt')
@@ -48,39 +47,36 @@ def model_wrapper(X_train, y_train, X_test, y_test,
         f.write(f"R^2 Score: {r2}\n")
     print(f"Metrics saved to {metrics_file}")
 
-    # save results
-    output_file = os.path.join(output_path, 'output.csv')
-    df_results.to_csv(output_file, index=False)
-    print(f"Results saved to {output_file}")
-
     # plot
-    plt.figure(figsize=(8, 6))
-    plt.scatter(df_results['Actual_Total_LUTs'], df_results['Pred_Total_LUTs'], alpha=0.6)
-    plt.plot([df_results['Actual_Total_LUTs'].min(), df_results['Actual_Total_LUTs'].max()],
-             [df_results['Actual_Total_LUTs'].min(), df_results['Actual_Total_LUTs'].max()],
-             color='red', linestyle='--')
-    plt.title('Actual vs Predicted Total LUTs')
-    plt.xlabel('Actual')
-    plt.ylabel('Predicted')
-    plt.grid(True)
-    plt.tight_layout()
-    plot_file = os.path.join(output_path, 'prediction_plot.png')
-    plt.savefig(plot_file)
-    plt.close()
-    print(f"Plot saved to {plot_file}")
+    for target in targets:
+        plt.figure(figsize=(8, 6))
+        plt.scatter(df_results[f'Actual_{target}'], df_results[f'Pred_{target}'], alpha=0.6)
+        plt.plot([df_results[f'Actual_{target}'].min(), df_results[f'Actual_{target}'].max()],
+                 [df_results[f'Actual_{target}'].min(), df_results[f'Actual_{target}'].max()],
+                 color='red', linestyle='--')
+        plt.title(f'Actual vs Predicted - {target}')
+        plt.xlabel('Actual')
+        plt.ylabel('Predicted')
+        plt.grid(True)
+        plt.tight_layout()
+        plot_file = os.path.join(output_path, f'prediction_plot_{target}.png')
+        plt.savefig(plot_file)
+        plt.close()
+        print(f"Plot saved to {plot_file}")
 
-    residuals = df_results['Actual_Total_LUTs'] - df_results['Pred_Total_LUTs']
-    plt.figure(figsize=(8, 4))
-    plt.hist(residuals, bins=30)
-    plt.title("Residual Distribution")
-    plt.xlabel("Error")
-    plt.ylabel("Frequency")
-    plt.grid(True)
-    plt.tight_layout()
-    plot_file = os.path.join(output_path, 'residuals_plot.png')
-    plt.savefig(plot_file)
-    plt.close()
-    print(f"Plot saved to {plot_file}")
+        # Residuals
+        residuals = df_results[f'Actual_{target}'] - df_results[f'Pred_{target}']
+        plt.figure(figsize=(8, 4))
+        plt.hist(residuals, bins=30)
+        plt.title(f"Residuals - {target}")
+        plt.xlabel("Error")
+        plt.ylabel("Frequency")
+        plt.grid(True)
+        plt.tight_layout()
+        res_file = os.path.join(output_path, f'residuals_plot_{target}.png')
+        plt.savefig(res_file)
+        plt.close()
+        print(f"Residual plot saved to {res_file}")
 
 def tuning_model(x_train, y_train, output_path, model):
     """
@@ -142,35 +138,41 @@ def create_nn_model(X_train):
 def main():
     parser = argparse.ArgumentParser(description='HARA')
     
-    parser.add_argument('--input', type=str, help='Input CSV file path', default=area_summary_path)
+    parser.add_argument('--input', type=str, help='Input CSV file path', default=mvau_input_path)
     parser.add_argument('--output', type=str, help='Output CSV file path', default='results/')
     parser.add_argument('--model', type=str, help='Model type', default='neural_network')
-    parser.add_argument('--split', type=str, help='Split type', default='50000fps')
+    parser.add_argument('--split', type=str, help='Split type', default='500fps')
+    parser.add_argument('--target', type=str, help='Target variable', default='all')
 
     args = parser.parse_args()
 
     args.output = args.output + args.model + '/' + args.split + '/' 
     os.makedirs(args.output, exist_ok=True)
 
-    train, test = get_data_fps(area_summary_path, args.split)
-    train = train.drop(train.columns[:2], axis=1)
-    test = test.drop(test.columns[:2], axis=1)
-    X_train, y_train = split_data(train, ['Total LUTs'])
-    X_test, y_test = split_data(test, ['Total LUTs'])
+    if(args.target == 'luts'):
+        args.target = ['Total LUTs']
+    if(args.target == 'all'):
+        args.target = ['Total LUTs', 'Logic LUTs','LUTRAMs','SRLs','FFs','RAMB36','RAMB18','DSP Blocks']
+
+    train, test = get_data_fps(args.input, args.split)
+    train = train.drop(columns=['Repo', 'NodeName'])
+    test = test.drop(columns=['Repo', 'NodeName'])
+    X_train, y_train = split_data(train, args.target)
+    X_test, y_test = split_data(test, args.target)
 
     if args.model == 'random_forest':
         best_model = tuning_model(X_train, y_train, args.output, args.model)
-        model_wrapper(X_train, y_train, X_test, y_test, args.output, model=best_model)
+        model_wrapper(X_train, y_train, X_test, y_test, args.output, args.target, model=best_model)
 
     if args.model == 'xgboost':
         best_model = tuning_model(X_train, y_train, args.output, args.model)
-        model_wrapper(X_train, y_train, X_test, y_test, args.output, model=best_model)
+        model_wrapper(X_train, y_train, X_test, y_test, args.output, args.target, model=best_model)
 
     if args.model == 'neural_network':
-        y_train = y_train.values.ravel()
-        y_test = y_test.values.ravel()
-        network = create_nn_model(X_train)
-        model_wrapper(X_train, y_train, X_test, y_test, args.output, model=network, flag ='flattened')
+        # y_train = y_train.values.ravel()
+        # y_test = y_test.values.ravel()
+        network = MultiOutputRegressor(create_nn_model(X_train))
+        model_wrapper(X_train, y_train, X_test, y_test, args.output, args.target, model=network)
     else:
         print(f"Model {args.model} not recognized.")
     
