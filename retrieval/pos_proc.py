@@ -74,6 +74,17 @@ area_cols_to_preserve = [
     "numInputVectors",
 ]
 
+max_resources = {
+    "Total LUTs": 53200,
+    "LUTRAMs": 17400,
+    "Logic LUTs": 53200,
+    "FFs": 106400,
+    "RAMB36": 140,
+    "RAMB18": 280,
+    "DSP Blocks": 220
+}
+
+
 cleaned_dfs = {}
 summary = {}
 
@@ -145,6 +156,11 @@ def clean_dataframe(df):
     # 8. Expandir colunas com valores list-like
     df = expand_listlike_columns(df)
 
+    # 9. Normalizar colunas de área com base nos máximos
+    for col, max_val in max_resources.items():
+        if col in df.columns:
+            df[col] = ((df[col] / max_val) * 100).round(4)
+
     return df, {
         "original_columns": len(nunique),
         "removed_constant": len(cols_to_drop),
@@ -152,6 +168,8 @@ def clean_dataframe(df):
         "removed_missing": len(cols_to_drop_missing),
         "final_columns": df.shape[1]
     }
+
+
 
 # Processar todos os arquivos
 for path in file_paths:

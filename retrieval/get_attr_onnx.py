@@ -69,43 +69,43 @@ for base_dir in base_dirs:
     subdirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
 
     for repo in sorted(subdirs):
-        onnx_dir = os.path.join(base_dir, repo, "intermediate_models/kernel_partitions/")
+        if repo.endswith("sources_u"):
+            continue
+
+        onnx_dir = os.path.join(base_dir, repo, "intermediate_models/")
         if not os.path.isdir(onnx_dir):
             print(f"🔍 Diretório não encontrado: {onnx_dir}")
             continue
 
+        filename = "step_generate_estimate_reports.onnx"
         # --- ONNX ---
-        for filename in sorted(os.listdir(onnx_dir)):
-            if filename.endswith(".onnx"):
-                onnx_path = os.path.join(onnx_dir, filename)
-                try:
-                    model = onnx.load(onnx_path)
-                except Exception as e:
-                    print(f"❌ Erro ao carregar {onnx_path}: {e}")
+        onnx_path = os.path.join(onnx_dir, filename)
+        try:
+            model = onnx.load(onnx_path)
+        except Exception as e:
+            print(f"❌ Erro ao carregar {onnx_path}: {e}")
+            continue
+
+        for node in model.graph.node:
+            op_type = node.op_type
+            if op_type == "IODMA_hls":
+                continue
+
+            row = {
+                "Repo": repo,
+                "NodeName": node.name or "(sem nome)",
+                "OpType": op_type,
+            }
+
+            for attr in node.attribute:
+                attr_name = attr.name
+                if attr_name in ignore_attrs:
                     continue
+                attr_val = helper.get_attribute_value(attr)
+                row[attr_name] = str(attr_val)
+                optype_all_keys[op_type].add(attr_name)
 
-                partition_name = filename.replace(".onnx", "")
-                for node in model.graph.node:
-                    op_type = node.op_type
-                    if op_type == "IODMA_hls":
-                        continue
-
-                    row = {
-                        "Repo": repo,
-                        "NodeName": node.name or "(sem nome)",
-                        "OpType": op_type,
-                        "Partition": partition_name
-                    }
-
-                    for attr in node.attribute:
-                        attr_name = attr.name
-                        if attr_name in ignore_attrs:
-                            continue
-                        attr_val = helper.get_attribute_value(attr)
-                        row[attr_name] = str(attr_val)
-                        optype_all_keys[op_type].add(attr_name)
-
-                    optype_rows[op_type].append(row)
+            optype_rows[op_type].append(row)
 
         # --- Área (XML) ---
         xml_path = os.path.join(base_dir, repo, "zynq_proj/synth_report.xml")
@@ -116,7 +116,7 @@ for base_dir in base_dirs:
             for row in root.findall(".//tablerow"):
                 values = [col.get("contents") for col in row.findall(".//tablecell") if col.get("contents")]
                 if values and "Streaming" in values[0] and "IODMA" not in values[0]:
-                    instance = values[0].strip()
+                    instance = values[0].replace("StreamingDataflowPartition_1_","").strip()
                     area_data = {
                         "Repo": repo,
                         "Instance": instance,
@@ -136,13 +136,15 @@ for base_dir in base_dirs:
 # =============================
 for op_type, rows in optype_rows.items():
     attr_names = sorted(optype_all_keys[op_type])
+    print(attr_names)
+    input()
     filenames = [f"{op_type}.csv"]
     csv_paths = [os.path.join(p, f"{op_type}.csv") for p in [onnx_results_dir, last_run_dir]]
 
     for csv_path in csv_paths:
         with open(csv_path, mode="w", newline="") as f:
             writer = csv.writer(f)
-            header = ["Repo", "NodeName", "OpType", "Partition"] + attr_names
+            header = ["Repo", "NodeName", "OpType"] + attr_names
             writer.writerow(header)
             for row in rows:
                 writer.writerow([row.get(k, "") for k in header])
@@ -159,6 +161,8 @@ for path in area_csv_paths:
         for row in area_summary_rows:
             writer.writerow(row)
     print(f"✅ CSV de área gerado: {path}")
+
+input()
 
 # =============================
 # Merge ONNX + Área
@@ -177,14 +181,14 @@ for op_type, rows in optype_rows.items():
     for csv_path in csv_paths:
         with open(csv_path, mode="w", newline="") as f:
             writer = csv.writer(f)
-            header = ["Repo", "NodeName", "OpType", "Partition"] + attr_names + area_fields
+            header = ["Repo", "NodeName", "OpType"] + attr_names + area_fields
             writer.writerow(header)
 
             for row in rows:
                 key = (row["Repo"], row["NodeName"])
                 if key in area_lookup:
                     line = [
-                        row["Repo"], row["NodeName"], op_type, row["Partition"]
+                        row["Repo"], row["NodeName"], op_type,
                     ] + [row.get(k, "") for k in attr_names] + area_lookup[key]
                     writer.writerow(line)
         print(f"📁 CSV gerado com merge: {csv_path}")

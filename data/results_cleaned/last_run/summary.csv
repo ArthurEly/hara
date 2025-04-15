@@ -1,10 +1,10 @@
 Operator,original_columns,removed_constant,removed_high_corr,removed_missing,final_columns
 StreamingFIFO_rtl_merged,18,3,0,0,14
-FMPadding_hls_merged,19,2,0,0,17
-ConvolutionInputGenerator_hls_merged,24,3,0,0,21
-ConvolutionInputGenerator_rtl_merged,25,4,0,0,21
-MVAU_hls_merged,27,4,0,0,22
-LabelSelect_hls_merged,20,3,0,0,17
+FMPadding_hls_merged,16,1,0,0,15
+ConvolutionInputGenerator_hls_merged,21,2,0,0,19
+ConvolutionInputGenerator_rtl_merged,22,3,0,0,19
+MVAU_hls_merged,24,3,0,0,20
+LabelSelect_hls_merged,17,2,0,0,15
 StreamingDataWidthConverter_rtl_merged,18,2,0,0,16
 StreamingDataWidthConverter_hls_merged,18,2,0,0,16
-StreamingMaxPool_hls_merged,20,4,0,0,16
+StreamingMaxPool_hls_merged,17,3,0,0,14

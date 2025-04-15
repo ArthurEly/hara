@@ -1,17 +1,17 @@
-Repo,NodeName,ImgDim (dimensions flattened),NumChannels,PE,dataType (bits),inFIFODepths (dimensions flattened),outFIFODepths (dimensions flattened),Total LUTs,Logic LUTs,LUTRAMs,SRLs,FFs,RAMB36,RAMB18,DSP Blocks
-t4w1a1_100fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,784,64,1,1,2,32,364,364,0,0,581,2,0,0
-t4w1a1_100fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,100,128,1,1,2,32,638,638,0,0,1083,4,0,0
-t4w1a1_3500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,784,64,1,1,2,32,364,364,0,0,581,2,0,0
-t4w1a1_3500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,100,128,1,1,2,32,638,638,0,0,1083,4,0,0
-t4w1a1_4000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,784,64,1,1,2,32,364,364,0,0,581,2,0,0
-t4w1a1_4000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,100,128,1,1,2,32,638,638,0,0,1083,4,0,0
-t4w1a1_4500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,784,64,1,1,2,32,364,364,0,0,581,2,0,0
-t4w1a1_4500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,100,128,1,1,2,32,638,638,0,0,1083,4,0,0
-t4w1a1_5000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,784,64,1,1,2,32,364,364,0,0,581,2,0,0
-t4w1a1_5000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,100,128,1,1,2,32,638,638,0,0,1083,4,0,0
-t4w1a1_6000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,784,64,1,1,2,32,364,364,0,0,581,2,0,0
-t4w1a1_6000fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,100,128,1,1,2,32,638,638,0,0,1083,4,0,0
-t4w1a1_700fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,784,64,1,1,2,32,364,364,0,0,581,2,0,0
-t4w1a1_700fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,100,128,1,1,2,32,638,638,0,0,1083,4,0,0
-t4w1a1_7500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_0,784,64,1,1,2,32,364,364,0,0,581,2,0,0
-t4w1a1_7500fps_u,StreamingDataflowPartition_1_StreamingMaxPool_hls_1,100,128,1,1,2,32,638,638,0,0,1083,4,0,0
+Repo,NodeName,ImgDim (dimensions flattened),NumChannels,PE,dataType (bits),Total LUTs,Logic LUTs,LUTRAMs,SRLs,FFs,RAMB36,RAMB18,DSP Blocks
+t4w1a1_100fps_u,StreamingMaxPool_hls_0,784,64,1,1,0.6842,0.6842,0.0,0,0.5461,1.4286,0.0,0.0
+t4w1a1_100fps_u,StreamingMaxPool_hls_1,100,128,1,1,1.1992,1.1992,0.0,0,1.0179,2.8571,0.0,0.0
+t4w1a1_3500fps_u,StreamingMaxPool_hls_0,784,64,1,1,0.6842,0.6842,0.0,0,0.5461,1.4286,0.0,0.0
+t4w1a1_3500fps_u,StreamingMaxPool_hls_1,100,128,1,1,1.1992,1.1992,0.0,0,1.0179,2.8571,0.0,0.0
+t4w1a1_4000fps_u,StreamingMaxPool_hls_0,784,64,1,1,0.6842,0.6842,0.0,0,0.5461,1.4286,0.0,0.0
+t4w1a1_4000fps_u,StreamingMaxPool_hls_1,100,128,1,1,1.1992,1.1992,0.0,0,1.0179,2.8571,0.0,0.0
+t4w1a1_4500fps_u,StreamingMaxPool_hls_0,784,64,1,1,0.6842,0.6842,0.0,0,0.5461,1.4286,0.0,0.0
+t4w1a1_4500fps_u,StreamingMaxPool_hls_1,100,128,1,1,1.1992,1.1992,0.0,0,1.0179,2.8571,0.0,0.0
+t4w1a1_5000fps_u,StreamingMaxPool_hls_0,784,64,1,1,0.6842,0.6842,0.0,0,0.5461,1.4286,0.0,0.0
+t4w1a1_5000fps_u,StreamingMaxPool_hls_1,100,128,1,1,1.1992,1.1992,0.0,0,1.0179,2.8571,0.0,0.0
+t4w1a1_6000fps_u,StreamingMaxPool_hls_0,784,64,1,1,0.6842,0.6842,0.0,0,0.5461,1.4286,0.0,0.0
+t4w1a1_6000fps_u,StreamingMaxPool_hls_1,100,128,1,1,1.1992,1.1992,0.0,0,1.0179,2.8571,0.0,0.0
+t4w1a1_700fps_u,StreamingMaxPool_hls_0,784,64,1,1,0.6842,0.6842,0.0,0,0.5461,1.4286,0.0,0.0
+t4w1a1_700fps_u,StreamingMaxPool_hls_1,100,128,1,1,1.1992,1.1992,0.0,0,1.0179,2.8571,0.0,0.0
+t4w1a1_7500fps_u,StreamingMaxPool_hls_0,784,64,1,1,0.6842,0.6842,0.0,0,0.5461,1.4286,0.0,0.0
+t4w1a1_7500fps_u,StreamingMaxPool_hls_1,100,128,1,1,1.1992,1.1992,0.0,0,1.0179,2.8571,0.0,0.0

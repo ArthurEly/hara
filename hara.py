@@ -111,15 +111,13 @@ def run_and_capture(args, timeout_sec=300):
         args,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        stdin=subprocess.DEVNULL,  # <<<< aqui
+        stdin=subprocess.DEVNULL,  
         text=True,
         bufsize=1,
-        env=env  # <<<<< isso aqui evita entrar no PDB
+        env=env  
     ) as proc:
         def monitor_output():
             for line in proc.stdout:
-                print("----------------------")
-                print(line, end='')
                 output_log.write(line)
 
         t = threading.Thread(target=monitor_output)
