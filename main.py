@@ -1,9 +1,17 @@
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.multioutput import MultiOutputRegressor
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.neural_network import MLPRegressor
 from xgboost import XGBRegressor
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Input
+from tensorflow.keras.optimizers import Adam
+import tensorflow as tf
+from scikeras.wrappers import KerasRegressor
+from scipy.stats import randint, uniform
+
+
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -122,9 +130,53 @@ def tuning_model(x_train, y_train, output_path, model):
     print(f"Best parameters saved to {best_params_file}")
     return grid_search.best_estimator_
 
+def tuning_keras_model(x_train, y_train, output_path, input_dim):
+    """
+    Perform hyperparameter tuning for a Keras model using RandomizedSearchCV.
+    """
+
+    print("Tuning keras_seq with RandomizedSearchCV...")
+
+    keras_reg = KerasRegressor(
+        model=create_keras_nn_model,
+        model__input_dim=input_dim,
+        verbose=0
+    )
+
+    param_dist = {
+        'estimator__model__units_1': randint(32, 128),
+        'estimator__model__units_2': randint(32, 128),
+        'estimator__model__learning_rate': uniform(0.0001, 0.01),
+        'estimator__epochs': [50, 100, 150],
+        'estimator__batch_size': [16, 32, 64]
+    }
+
+    base_model = MultiOutputRegressor(keras_reg)
+
+    random_search = RandomizedSearchCV(
+        estimator=base_model,
+        param_distributions=param_dist,
+        n_iter=10,
+        cv=3,
+        scoring='neg_mean_squared_error',
+        n_jobs=-1,
+        verbose=1,
+        random_state=42
+    )
+
+    random_search.fit(x_train, y_train)
+
+    # Save best parameters
+    best_params_file = os.path.join(output_path, 'best_params_keras.json')
+    with open(best_params_file, 'w') as f:
+        json.dump(random_search.best_params_, f, indent=4)
+    print(f"Best parameters saved to {best_params_file}")
+
+    return random_search.best_estimator_
+
 def create_nn_model(X_train):
     """
-    Create a simple feedforward neural network model.
+    Create a feedforward neural network model using MultiLayerPerceptron.
     """
 
     model = MLPRegressor(hidden_layer_sizes=(100, 50),
@@ -132,16 +184,26 @@ def create_nn_model(X_train):
                         solver='adam',
                         max_iter=500,
                         random_state=42)
+
     return model
 
+def create_keras_nn_model(input_dim, units_1=64, units_2=64, learning_rate=0.001):
+    model = Sequential()
+    model.add(Input(shape=(input_dim,)))
+    model.add(Dense(units_1, activation='relu'))
+    model.add(Dense(units_2, activation='relu'))
+    model.add(Dense(1))
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+                  loss='mse')
+    return model
 
 def main():
     parser = argparse.ArgumentParser(description='HARA')
     
     parser.add_argument('--input', type=str, help='Input CSV file path', default=mvau_input_path)
     parser.add_argument('--output', type=str, help='Output CSV file path', default='results/')
-    parser.add_argument('--model', type=str, help='Model type', default='neural_network')
-    parser.add_argument('--split', type=str, help='Split type', default='500fps')
+    parser.add_argument('--model', type=str, help='Model type', default='mlp')
+    parser.add_argument('--split', type=str, help='Split type', default='5000fps')
     parser.add_argument('--target', type=str, help='Target variable', default='all')
 
     args = parser.parse_args()
@@ -168,11 +230,24 @@ def main():
         best_model = tuning_model(X_train, y_train, args.output, args.model)
         model_wrapper(X_train, y_train, X_test, y_test, args.output, args.target, model=best_model)
 
-    if args.model == 'neural_network':
-        # y_train = y_train.values.ravel()
-        # y_test = y_test.values.ravel()
-        network = MultiOutputRegressor(create_nn_model(X_train))
-        model_wrapper(X_train, y_train, X_test, y_test, args.output, args.target, model=network)
+    if args.model == 'mlp':
+        model = MultiOutputRegressor(create_nn_model(X_train))
+        model_wrapper(X_train, y_train, X_test, y_test, args.output, args.target, model=model)
+
+    if args.model == 'keras_seq':
+        # input_dim = X_train.shape[1]
+        # keras_model = KerasRegressor(model=create_keras_nn_model,
+        #                             model__input_dim=input_dim,
+        #                             epochs=100,
+        #                             batch_size=32,
+        #                             verbose=1)
+        # model = MultiOutputRegressor(keras_model)
+        # model_wrapper(X_train, y_train, X_test, y_test, args.output, args.target, model=model)
+
+        input_dim = X_train.shape[1]
+        best_model = tuning_keras_model(X_train, y_train, args.output, input_dim)
+        model_wrapper(X_train, y_train, X_test, y_test, args.output, args.target, model=best_model)
+
     else:
         print(f"Model {args.model} not recognized.")
     
