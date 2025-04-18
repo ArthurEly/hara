@@ -19,7 +19,7 @@ import numpy as np
 import os
 import argparse
 
-from utils import get_data_fps, get_data_t1t2, split_data
+from utils import get_data_fps, get_data_t1t2, get_random_data, split_data, plot_correlation_matrix
 
 conv_input_path = 'data/results_cleaned/last_run/ConvolutionInputGenerator_hls_merged_cleaned.csv'
 mvau_input_path = 'data/results_cleaned/last_run/MVAU_hls_merged_cleaned.csv'
@@ -205,6 +205,7 @@ def main():
     parser.add_argument('--model', type=str, help='Model type', default='mlp')
     parser.add_argument('--split', type=str, help='Split type', default='5000fps')
     parser.add_argument('--target', type=str, help='Target variable', default='all')
+    parser.add_argument('--plot', type=str, help='Plot type', default='corr')
 
     args = parser.parse_args()
 
@@ -221,6 +222,14 @@ def main():
     test = test.drop(columns=['Repo', 'NodeName'])
     X_train, y_train = split_data(train, args.target)
     X_test, y_test = split_data(test, args.target)
+
+    if args.plot == 'corr':
+        print("Plotting correlation matrices...")
+        for target in args.target:
+            output_path = f'plots/{target}_correlation_matrix.png'
+            print(f"Plotting correlation matrix for {target}...")
+            plot_correlation_matrix(train, [target], 0.5, output_path)
+        return
 
     if args.model == 'random_forest':
         best_model = tuning_model(X_train, y_train, args.output, args.model)
