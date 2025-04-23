@@ -11,6 +11,8 @@ import tensorflow as tf
 from scikeras.wrappers import KerasRegressor
 from scipy.stats import randint, uniform
 
+from sklearn.preprocessing import MinMaxScaler
+
 
 import json
 import matplotlib.pyplot as plt
@@ -27,19 +29,24 @@ area_summary_path = 'data/results_onnx/last_run/area_summary.csv'
 
 
 def model_wrapper(X_train, y_train, X_test, y_test,
-                            output_path, targets, model=None, flag=None):
+                            output_path, targets, model=None, target_scaler=None):
     """
     Wrapper function for ML models.
     """
+
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
+
+    if target_scaler is not None:
+        y_pred = target_scaler.inverse_transform(y_pred)
+        y_test = target_scaler.inverse_transform(y_test)
 
     # eval
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
 
     # pred vs actual
-    df_results = pd.DataFrame(y_test.values, columns=[f'Actual_{t}' for t in targets])
+    df_results = pd.DataFrame(y_test, columns=[f'Actual_{t}' for t in targets])
     pred_df = pd.DataFrame(y_pred, columns=[f'Pred_{t}' for t in targets])
     df_results = pd.concat([df_results, pred_df], axis=1)
 
@@ -144,8 +151,10 @@ def tuning_keras_model(x_train, y_train, output_path, input_dim):
     )
 
     param_dist = {
-        'estimator__model__units_1': randint(32, 128),
-        'estimator__model__units_2': randint(32, 128),
+        'estimator__model__units_1': randint(32, 256),
+        'estimator__model__units_2': randint(32, 256),
+        'estimator__model__units_3': randint(32, 256),
+        'estimator__model__units_4': randint(32, 256),
         'estimator__model__learning_rate': uniform(0.0001, 0.01),
         'estimator__epochs': [50, 100, 150],
         'estimator__batch_size': [16, 32, 64]
@@ -187,25 +196,49 @@ def create_nn_model(X_train):
 
     return model
 
-def create_keras_nn_model(input_dim, units_1=64, units_2=64, learning_rate=0.001):
+def create_keras_nn_model(input_dim, units_1=64, units_2=64, units_3=64, units_4=64, learning_rate=0.001):
     model = Sequential()
     model.add(Input(shape=(input_dim,)))
     model.add(Dense(units_1, activation='relu'))
     model.add(Dense(units_2, activation='relu'))
+    model.add(Dense(units_3, activation='relu'))
+    model.add(Dense(units_4, activation='relu'))
     model.add(Dense(1))
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
                   loss='mse')
     return model
+
+def load_best_params(input_dim, param_path):
+    with open(param_path, 'r') as f:
+        best_params = json.load(f)
+
+    units_1 = best_params['estimator__model__units_1']
+    units_2 = best_params['estimator__model__units_2']
+    units_3 = best_params['estimator__model__units_3']
+    units_4 = best_params['estimator__model__units_4']
+    learning_rate = best_params['estimator__model__learning_rate']
+    epochs = best_params['estimator__epochs']
+    batch_size = best_params['estimator__batch_size']
+
+    model = create_keras_nn_model(input_dim=input_dim,
+                                   units_1=units_1,
+                                   units_2=units_2,
+                                   units_3=units_3,
+                                   units_4=units_4,
+                                   learning_rate=learning_rate)
+
+    return model, epochs, batch_size
 
 def main():
     parser = argparse.ArgumentParser(description='HARA')
     
     parser.add_argument('--input', type=str, help='Input CSV file path', default=mvau_input_path)
     parser.add_argument('--output', type=str, help='Output CSV file path', default='results/')
-    parser.add_argument('--model', type=str, help='Model type', default='mlp')
-    parser.add_argument('--split', type=str, help='Split type', default='5000fps')
+    parser.add_argument('--model', type=str, help='Model type', default='keras_seq')
+    parser.add_argument('--split', type=str, help='Split type', default='random')
     parser.add_argument('--target', type=str, help='Target variable', default='all')
-    parser.add_argument('--plot', type=str, help='Plot type', default='corr')
+    parser.add_argument('--plot', type=str, help='Plot type', default=None)
+    parser.add_argument('--scaled', type=str, default='yes')
 
     args = parser.parse_args()
 
@@ -215,13 +248,21 @@ def main():
     if(args.target == 'luts'):
         args.target = ['Total LUTs']
     if(args.target == 'all'):
-        args.target = ['Total LUTs', 'Logic LUTs','LUTRAMs','SRLs','FFs','RAMB36','RAMB18','DSP Blocks']
+        args.target = ['Total LUTs', 'Logic LUTs','LUTRAMs','FFs','RAMB36','RAMB18','DSP Blocks']
 
-    train, test = get_data_fps(args.input, args.split)
-    train = train.drop(columns=['Repo', 'NodeName'])
-    test = test.drop(columns=['Repo', 'NodeName'])
+    train, test = get_random_data(args.input)
+    train = train.drop(columns=['Repo', 'NodeName', 'SRLs'])
+    test = test.drop(columns=['Repo', 'NodeName','SRLs'])
     X_train, y_train = split_data(train, args.target)
     X_test, y_test = split_data(test, args.target)
+
+    if(args.scaled == 'yes'):
+        feature_scaler = MinMaxScaler()
+        X_train_scaled = feature_scaler.fit_transform(X_train)
+        X_test_scaled = feature_scaler.transform(X_test)  
+        target_scaler = MinMaxScaler()
+        y_train_scaled = target_scaler.fit_transform(y_train)
+        y_test_scaled = target_scaler.transform(y_test)
 
     if args.plot == 'corr':
         print("Plotting correlation matrices...")
@@ -244,14 +285,26 @@ def main():
         model_wrapper(X_train, y_train, X_test, y_test, args.output, args.target, model=model)
 
     if args.model == 'keras_seq':
-        # input_dim = X_train.shape[1]
-        # keras_model = KerasRegressor(model=create_keras_nn_model,
-        #                             model__input_dim=input_dim,
-        #                             epochs=100,
-        #                             batch_size=32,
-        #                             verbose=1)
-        # model = MultiOutputRegressor(keras_model)
-        # model_wrapper(X_train, y_train, X_test, y_test, args.output, args.target, model=model)
+        if(args.scaled == 'yes'):
+            
+            input_dim = X_train_scaled.shape[1]
+            best_params_path = os.path.join(args.output, 'best_params_keras.json')
+
+            if os.path.exists(best_params_path):
+                print("Loading best parameters from previous run...")
+                model_fn, epochs, batch_size = load_best_params(input_dim, best_params_path)
+                keras_reg = KerasRegressor(model=model_fn, epochs=epochs, batch_size=batch_size, verbose=0)
+                model = MultiOutputRegressor(keras_reg)
+
+                model_wrapper(X_train_scaled, y_train_scaled, X_test_scaled, y_test_scaled, args.output,
+                            args.target, model=model, target_scaler=target_scaler)
+                return
+
+            print("No previous run found, tuning keras model...")
+            input_dim = X_train_scaled.shape[1]
+            best_model = tuning_keras_model(X_train_scaled, y_train_scaled, args.output, input_dim)
+            model_wrapper(X_train_scaled, y_train_scaled, X_test_scaled, y_test_scaled, args.output, args.target, model=best_model, target_scaler=target_scaler)
+            return
 
         input_dim = X_train.shape[1]
         best_model = tuning_keras_model(X_train, y_train, args.output, input_dim)

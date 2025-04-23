@@ -1,0 +1,9 @@
+{
+    "estimator__batch_size": 32,
+    "estimator__epochs": 50,
+    "estimator__model__learning_rate": 0.009756320330745593,
+    "estimator__model__units_1": 40,
+    "estimator__model__units_2": 121,
+    "estimator__model__units_3": 84,
+    "estimator__model__units_4": 161
+}

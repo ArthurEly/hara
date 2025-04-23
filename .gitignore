@@ -5,3 +5,4 @@ run*
 /builds
 /crash_reports
 last_run
+/old*
