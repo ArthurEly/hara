@@ -235,7 +235,7 @@ def main():
     parser.add_argument('--input', type=str, help='Input CSV file path', default=mvau_input_path)
     parser.add_argument('--output', type=str, help='Output CSV file path', default='results/')
     parser.add_argument('--model', type=str, help='Model type', default='keras_seq')
-    parser.add_argument('--split', type=str, help='Split type', default='random')
+    parser.add_argument('--split', type=str, help='Split type', default='500fps')
     parser.add_argument('--target', type=str, help='Target variable', default='all')
     parser.add_argument('--plot', type=str, help='Plot type', default=None)
     parser.add_argument('--scaled', type=str, default='yes')
@@ -245,12 +245,19 @@ def main():
     args.output = args.output + args.model + '/' + args.split + '/' 
     os.makedirs(args.output, exist_ok=True)
 
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    print("Available GPUs:", gpus)
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+
+
     if(args.target == 'luts'):
         args.target = ['Total LUTs']
     if(args.target == 'all'):
         args.target = ['Total LUTs', 'Logic LUTs','LUTRAMs','FFs','RAMB36','RAMB18','DSP Blocks']
 
-    train, test = get_random_data(args.input)
+    #train, test = get_random_data(args.input)
+    train, test = get_data_fps(args.input, args.split)
     train = train.drop(columns=['Repo', 'NodeName', 'SRLs'])
     test = test.drop(columns=['Repo', 'NodeName','SRLs'])
     X_train, y_train = split_data(train, args.target)
