@@ -80,7 +80,7 @@ def split_data(data: pd.DataFrame, targets):
     y = data[targets]
     return X, y
 
-def plot_correlation_matrix(df, target_columns, threshold=0.5, save_path=None):
+def plot_correlation_matrix(df, target_columns, threshold=0.2, save_path=None):
     """
     Plots a correlation matrix heatmap for a DataFrame.
 

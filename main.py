@@ -244,7 +244,7 @@ def main():
     parser.add_argument('--model', type=str, help='Model type', default='keras_seq')
     parser.add_argument('--split', type=str, help='Split type', default='500fps')
     parser.add_argument('--target', type=str, help='Target variable', default='all')
-    parser.add_argument('--plot', type=str, help='Plot type', default=None)
+    parser.add_argument('--plot', type=str, help='Plot type', default='corr')
     parser.add_argument('--scaled', type=str, default='yes')
 
     args = parser.parse_args()
