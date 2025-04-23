@@ -1,24 +1,26 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.neural_network import MLPRegressor
 from xgboost import XGBRegressor
+import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, Input
 from tensorflow.keras.optimizers import Adam
-import tensorflow as tf
 from scikeras.wrappers import KerasRegressor
 from scipy.stats import randint, uniform
 
 from sklearn.preprocessing import MinMaxScaler
-
-
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-import os
+
 import argparse
 
 from utils import get_data_fps, get_data_t1t2, get_random_data, split_data, plot_correlation_matrix
@@ -143,21 +145,26 @@ def tuning_keras_model(x_train, y_train, output_path, input_dim):
     """
 
     print("Tuning keras_seq with RandomizedSearchCV...")
+    early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
 
     keras_reg = KerasRegressor(
         model=create_keras_nn_model,
         model__input_dim=input_dim,
-        verbose=0
+        verbose=0,
+        callbacks=[early_stop]
     )
 
     param_dist = {
-        'estimator__model__units_1': randint(32, 256),
-        'estimator__model__units_2': randint(32, 256),
-        'estimator__model__units_3': randint(32, 256),
-        'estimator__model__units_4': randint(32, 256),
-        'estimator__model__learning_rate': uniform(0.0001, 0.01),
-        'estimator__epochs': [50, 100, 150],
-        'estimator__batch_size': [16, 32, 64]
+        'estimator__model__units_1': randint(64, 128),  
+        'estimator__model__units_2': randint(64, 128),
+        'estimator__model__units_3': randint(64, 128),
+        'estimator__model__units_4': randint(64, 128),
+        # 'estimator__model__learning_rate': uniform(0.0001, 0.01),
+        'estimator__model__learning_rate': uniform(0.001, 0.005),
+        # 'estimator__epochs': [50, 100, 150],
+        # 'estimator__batch_size': [16, 32, 64]
+        'estimator__epochs': [100, 200],  # fewer choices
+        'estimator__batch_size': [32, 64]
     }
 
     base_model = MultiOutputRegressor(keras_reg)
@@ -245,10 +252,10 @@ def main():
     args.output = args.output + args.model + '/' + args.split + '/' 
     os.makedirs(args.output, exist_ok=True)
 
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    print("Available GPUs:", gpus)
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
+    # gpus = tf.config.experimental.list_physical_devices('GPU')
+    # print("Available GPUs:", gpus)
+    # for gpu in gpus:
+    #     tf.config.experimental.set_memory_growth(gpu, True)
 
 
     if(args.target == 'luts'):
@@ -256,8 +263,10 @@ def main():
     if(args.target == 'all'):
         args.target = ['Total LUTs', 'Logic LUTs','LUTRAMs','FFs','RAMB36','RAMB18','DSP Blocks']
 
-    #train, test = get_random_data(args.input)
-    train, test = get_data_fps(args.input, args.split)
+    if(args.split == 'random'):
+        train, test = get_random_data(args.input)
+    else:
+        train, test = get_data_fps(args.input, args.split)
     train = train.drop(columns=['Repo', 'NodeName', 'SRLs'])
     test = test.drop(columns=['Repo', 'NodeName','SRLs'])
     X_train, y_train = split_data(train, args.target)
