@@ -6,3 +6,6 @@ run*
 /crash_reports
 last_run
 /old*
+/plots
+test.py
+test.py

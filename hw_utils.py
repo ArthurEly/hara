@@ -43,6 +43,14 @@ from qonnx.custom_op.registry import getCustomOp
 from qonnx.transformation.infer_data_layouts import InferDataLayouts
 import finn.builder.build_dataflow as build
 import finn.builder.build_dataflow_config as build_cfg
+import os
+import csv
+import json
+from datetime import datetime 
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+import re
 
 class utils():
     def __init__(self):
@@ -150,23 +158,167 @@ class utils():
         print(f"[!] Crash report saved at: {dest_dir}")
         return dest_dir
     
-    def append_run_summary(file_path, hw_name, status, folding_config):
+    def extract_area_from_rpt(build_dir):
+        rpt_file = None
+        for root, _, files in os.walk(build_dir):
+            for file in files:
+                if file.endswith('finn_design_partition_util.rpt'):
+                    rpt_file = os.path.join(root, file)
+                    break
+            if rpt_file:
+                break
+
+        if not rpt_file:
+            return None
+
+        with open(rpt_file) as f:
+            for line in f:
+                if "finn_design_wrapper" in line and "(top)" in line:
+                    tokens = line.split()
+                    try:
+                        total_luts = int(tokens[5])
+                        logic_luts = int(tokens[7])
+                        lutrams = int(tokens[9])
+                        srls = int(tokens[11])
+                        ffs = int(tokens[13])
+                        ramb36 = int(tokens[15])
+                        ramb18 = int(tokens[17])
+                        dsp = int(tokens[19])
+                        bram_36k = ramb36 + ramb18 / 2.0
+
+                        return {
+                            "Total LUTs": total_luts,
+                            "Logic LUTs": logic_luts,
+                            "LUTRAMs": lutrams,
+                            "SRLs": srls,
+                            "FFs": ffs,
+                            "BRAM (36k)": round(bram_36k, 1),
+                            "DSP Blocks": dsp
+                        }
+                    except (IndexError, ValueError):
+                        return None
+        return None
+
+    
+    def dict_diff(prev, curr):
+        changes = {}
+        for layer in curr:
+            if layer not in prev or prev[layer] != curr[layer]:
+                changes[layer] = {"from": prev.get(layer), "to": curr[layer]}
+        return changes
+    
+    def append_run_summary(file_path, hw_name, status, folding_config, duration, build_dir):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        prev_folding = {}
+        folding_diff = {}
+
+        # Tenta calcular o diff com a entrada anterior
+        if os.path.isfile(file_path):
+            try:
+                df = pd.read_csv(file_path)
+                df = df[df['status'] == 'success']
+                if not df.empty:
+                    last_row = df.iloc[-1]
+                    prev_folding = json.loads(last_row['folding_summary'])
+                    folding_diff = utils.dict_diff(prev_folding, folding_config)
+            except Exception as e:
+                print(f"[!] Erro ao processar folding anterior: {e}")
+
+        # Informações base
         summary = {
             "date": now,
             "hw_name": hw_name,
             "status": status,
-            "folding_summary": json.dumps(folding_config)
+            "duration_in_seconds": duration,
+            "folding_summary": json.dumps(folding_config),
+            "folding_diff": json.dumps(folding_diff),
+            "build_dir": build_dir,
         }
 
+        # Dados de área
+        area_data = utils.extract_area_from_rpt(build_dir)
+        if area_data:
+            summary.update(area_data)
+
+        # Dados de throughput
+        perf_path = os.path.join(build_dir, "report", "estimate_network_performance.json")
+        if os.path.isfile(perf_path):
+            try:
+                with open(perf_path, 'r') as f:
+                    perf_data = json.load(f)
+                    summary["estimated_throughput_fps"] = perf_data.get("estimated_throughput_fps", None)
+                    summary["max_cycles_node_name"] = perf_data.get("max_cycles_node_name", None)
+            except Exception as e:
+                print(f"[!] Erro ao ler estimated throughput: {e}")
+
+        # Ordem dos campos no CSV
+        field_order = [
+            "date", "hw_name", "status", "duration_in_seconds",
+            "folding_summary", "folding_diff", "build_dir",
+            "Total LUTs", "Logic LUTs", "LUTRAMs", "SRLs", "FFs", "BRAM (36k)", "DSP Blocks",
+            "estimated_throughput_fps", "max_cycles_node_name"
+        ]
+
+        # Escrita no CSV
         file_exists = os.path.isfile(file_path)
         with open(file_path, 'a', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=summary.keys())
+            writer = csv.DictWriter(csvfile, fieldnames=field_order)
             if not file_exists:
                 writer.writeheader()
             writer.writerow(summary)
 
-    def modify_folding(folding, onnx_path):
+            
+    def plot_area_usage_from_csv(csv_path, output_dir=None):
+        if not os.path.isfile(csv_path):
+            print(f"[!] Arquivo CSV não encontrado: {csv_path}")
+            return
+
+        df = pd.read_csv(csv_path)
+        df = df[df['status'] == 'success']
+
+        if df.empty:
+            print("[!] Nenhuma build com status 'success' encontrada.")
+            return
+
+        # Função para extrair número de hw_name para ordenação
+        def extract_number(hw_name):
+            match = re.search(r'(\d+)', hw_name)
+            return int(match.group(1)) if match else float('inf')
+
+        df = df.sort_values(by='hw_name', key=lambda x: x.apply(extract_number))
+
+        resource_types = ['Total LUTs', 'FFs', 'BRAM (36k)', 'DSP Blocks']
+        colors = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3']
+
+        for i, res in enumerate(resource_types):
+            if res not in df.columns:
+                continue
+
+            x = df['hw_name']
+            y = df[res]
+
+            plt.figure(figsize=(12, 5))
+            plt.bar(x, y, color=colors[i], alpha=0.7, label=res)
+            plt.plot(x, y, color=colors[i], linestyle='--', marker='o', linewidth=1.5, alpha=0.8)
+
+            plt.title(f"Evolução do uso de {res}")
+            plt.xlabel("Configuração de hardware")
+            plt.ylabel(res)
+            plt.xticks(rotation=45, ha='right')
+            plt.grid(True, axis='y', linestyle='--', alpha=0.5)
+            plt.tight_layout()
+            plt.legend()
+
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+                filename = os.path.join(output_dir, f"{res.replace(' ', '_')}.png")
+                plt.savefig(filename)
+            else:
+                plt.show()
+
+            plt.close()
+
+    def modify_folding(folding, onnx_path, estimate_layer_cycles, only_pe=False, only_simd=False):
         def get_layer_features(onnx_path):
             model = onnx.load(onnx_path)
             features = {}
@@ -174,63 +326,125 @@ class utils():
             for node in model.graph.node:
                 layer_name = node.name
                 op_type = node.op_type
-
                 attr_dict = {attr.name: helper.get_attribute_value(attr) for attr in node.attribute}
 
-                if op_type in ["MVAU_hls", "MVAU_rtl"]:  # MVAU
-                    mw = attr_dict.get("MW")
-                    mh = attr_dict.get("MH")
-                    if mw is not None and mh is not None:
-                        features[layer_name] = {"MW": int(mw), "MH": int(mh)}
-
+                feat = {}
+                if op_type in ["MVAU_hls", "MVAU_rtl"]:
+                    feat["MW"] = int(attr_dict.get("MW", 0))
+                    feat["MH"] = int(attr_dict.get("MH", 0))
                 elif op_type in ["FMPadding_rtl", "FMPadding_hls"]:
-                    num_channels = attr_dict.get("NumChannels")
-                    if num_channels is not None:
-                        features[layer_name] = {"NumChannels": int(num_channels)}
-
+                    feat["NumChannels"] = int(attr_dict.get("NumChannels", 0))
                 elif op_type in ["ConvolutionInputGenerator_rtl", "ConvolutionInputGenerator_hls"]:
-                    ifm_channels = attr_dict.get("IFMChannels")
-                    if ifm_channels is not None:
-                        features[layer_name] = {"IFMChannels": int(ifm_channels)}
-
-                elif op_type in ["LabelSelect_rtl","LabelSelect_hls"]:
-                    continue  # ignora esse
+                    feat["IFMChannels"] = int(attr_dict.get("IFMChannels", 0))
+                    feat["depthwise"] = int(attr_dict.get("depthwise", 0))
+                    feat["op_type"] = op_type
+                if feat:
+                    features[layer_name] = feat
 
             return features
 
         feature_dims = get_layer_features(onnx_path)
         new_folding = {}
+        layers_modified = False
 
-        for layer, cfg in folding.items():
+        max_latency = max(estimate_layer_cycles.values())
+        critical_layers = [k for k, v in estimate_layer_cycles.items() if v == max_latency]
+
+        print(only_pe, only_simd)
+        print(f"Camadas críticas: {critical_layers}")
+        print(f"Folding original: {folding}")
+        print(f"Estimativa de ciclos: {estimate_layer_cycles}")
+        print(f"Estimativa de ciclos (values): {estimate_layer_cycles.values()}")
+            
+        for layer in folding:
             if layer == "Defaults":
-                new_cfg = cfg.copy()
-                new_folding[layer] = new_cfg
+                new_folding[layer] = {k: v for k, v in folding[layer].items() if k in ["PE", "SIMD"]}
                 continue
 
-            new_cfg = cfg.copy()
+            cfg = folding[layer]
+            new_cfg = {k: v for k, v in cfg.items() if k in ["PE", "SIMD", "parallel_window"]}
             layer_features = feature_dims.get(layer, {})
+            modified = False
 
-            # MVAU: ajustar SIMD com MW
-            if "SIMD" in new_cfg and any(k in layer_features for k in ["MW", "IFMChannels", "NumChannels"]):
-                mw = layer_features.get("MW") or layer_features.get("IFMChannels") or layer_features.get("NumChannels")
-                new_simd = new_cfg["SIMD"] * 2
-                while new_simd > 1 and mw % new_simd != 0:
-                    new_simd -= 1
-                if mw % new_simd == 0:
-                    new_cfg["SIMD"] = new_simd
+            if layer in critical_layers:
+                op_type = layer_features.get("op_type", "")
+                if op_type.startswith("ConvolutionInputGenerator") and layer_features.get("depthwise", 0) == 0:
+                    if op_type == "ConvolutionInputGenerator_rtl":
+                        ifm_channels = layer_features.get("IFMChannels", 0)
+                        current_simd = new_cfg.get("SIMD", 1)
+                        if current_simd == ifm_channels:
+                            new_cfg["parallel_window"] = 1
+                            print(f"[→] Ativado parallel_window em {layer}")
+                            modified = True
 
-            # MVAU: ajustar PE com MH
-            if "PE" in new_cfg and "MH" in layer_features:
-                mh = layer_features["MH"]
-                new_pe = new_cfg["PE"] * 2
-                while new_pe > 1 and mh % new_pe != 0:
-                    new_pe -= 1
-                if mh % new_pe == 0:
-                    new_cfg["PE"] = new_pe
+                # Tentar modificar SIMD
+                if not only_pe and "SIMD" in new_cfg:
+                    mw = layer_features.get("MW") or layer_features.get("IFMChannels") or layer_features.get("NumChannels")
+                    if mw:
+                        new_simd = new_cfg["SIMD"] * 2
+                        while new_simd > 1 and mw % new_simd != 0:
+                            new_simd -= 1
+                        if new_simd > new_cfg["SIMD"] and mw % new_simd == 0:
+                            new_cfg["SIMD"] = new_simd
+                            modified = True
 
+                # Tentar modificar PE
+                if not only_simd and "PE" in new_cfg and "MH" in layer_features:
+                    mh = layer_features["MH"]
+                    new_pe = new_cfg["PE"] * 2
+                    while new_pe > 1 and mh % new_pe != 0:
+                        new_pe -= 1
+                    if new_pe > new_cfg["PE"] and mh % new_pe == 0:
+                        new_cfg["PE"] = new_pe
+                        modified = True
+
+                if modified:
+                    layers_modified = True
+                    print(f"[↑] Modificado: {layer} - PE: {cfg.get('PE')}→{new_cfg.get('PE')}, SIMD: {cfg.get('SIMD')}→{new_cfg.get('SIMD')}")
+                else:
+                    print(f"[=] Não modificado: {layer} - PE: {cfg.get('PE')}, SIMD: {cfg.get('SIMD')}")
+                    
             new_folding[layer] = new_cfg
 
-        return new_folding
+        return folding if not layers_modified else new_folding
+
+
+    def get_exceeded_resources_flags(resource_diffs):
+        return {
+            "lut_exceed": resource_diffs.get("Total LUTs", 0) < 0,
+            "ff_exceed": resource_diffs.get("FFs", 0) < 0,
+            "bram_exceed": resource_diffs.get("BRAM (36k)", 0) < 0,
+            "dsp_exceed": resource_diffs.get("DSP Blocks", 0) < 0,
+        }
+
+
+    def check_resource_usage(area_data, limits):
+        if area_data is None:
+            print("[!] Nenhum dado de área encontrado.")
+            return {}
+        diffs = {}
+        for res, max_val in limits.items():
+            used = area_data.get(res, 0)
+            diffs[res] = max_val - used
+        return diffs
+
+    def get_exceeded_resources_flags(resource_diffs):
+        return {
+            "lut_exceed": resource_diffs.get("Total LUTs", 0) < 0,
+            "ff_exceed": resource_diffs.get("FFs", 0) < 0,
+            "bram_exceed": resource_diffs.get("BRAM (36k)", 0) < 0,
+            "dsp_exceed": resource_diffs.get("DSP Blocks", 0) < 0,
+        }
+
+    
+    def raise_if_exceeds_limits(resource_diffs):
+        exceeded = {res: -diff for res, diff in resource_diffs.items() if diff < 0}
+        if exceeded:
+            msg_lines = ["[🚫] Recursos excedidos:"]
+            for res, amount in exceeded.items():
+                msg_lines.append(f"  - {res}: excedido por {amount}")
+            return exceeded
+        return None
 
     def build_hardware(build_dir,topology, target_fps, topology_class, quant, steps, folding_file, run, hw_name):
         def make_onnx(build_dir, cnv,quant,topology):
@@ -314,14 +528,14 @@ class utils():
                 folding_config_file=folding_file,
                 target_fps=target_fps,
                 synth_clk_period_ns=10,
+                stitched_ip_gen_dcp = True,
+                #verbose = True,
                 board="Pynq-Z1",
                 shell_flow_type=build_cfg.ShellFlowType.VIVADO_ZYNQ,
                 generate_outputs=[
                     build_cfg.DataflowOutputType.ESTIMATE_REPORTS,
                     build_cfg.DataflowOutputType.STITCHED_IP,
-                    build_cfg.DataflowOutputType.BITFILE,
-                    build_cfg.DataflowOutputType.DEPLOYMENT_PACKAGE,
-                    build_cfg.DataflowOutputType.PYNQ_DRIVER
+                    build_cfg.DataflowOutputType.OOC_SYNTH,
                 ],
                 steps=steps,
             )
