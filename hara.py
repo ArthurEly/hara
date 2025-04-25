@@ -83,77 +83,6 @@ config = {
     }
 }
 
-def tail_log(log_path):
-    """Imprime linhas novas do log em tempo real."""
-    with open(log_path, "r") as f:
-        f.seek(0, os.SEEK_END)  # Vai para o final do arquivo
-        while True:
-            line = f.readline()
-            if line:
-                print("[LOG]", line.strip())
-            else:
-                time.sleep(0.2)  # Espera um pouco por novas linhas
-
-def run_and_capture(args, timeout_sec=7200, log_path="build.log"):
-    from io import StringIO
-    import subprocess, threading, os
-
-    output_log = StringIO()
-
-    print(f"🛠️  [BUILD] Rodando subprocesso para {args[-1]}...")
-
-    env = os.environ.copy()
-    env["PYTHONBREAKPOINT"] = "0"
-
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
-
-    with open(log_path, "w") as log_file:
-        with subprocess.Popen(
-            args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            text=True,
-            bufsize=1,
-            env=env
-        ) as proc:
-            # Define a função de monitoramento
-            def monitor_output():
-                for line in proc.stdout:
-                    output_log.write(line)
-                    log_file.write(line)
-                    log_file.flush()
-
-            # Inicia a thread
-            t = threading.Thread(target=monitor_output)
-            t.start()
-
-            # Espera o tempo limite
-            t.join(timeout=timeout_sec)
-
-            # Se a thread ainda estiver viva, o processo travou
-            if t.is_alive():
-                proc.kill()
-                t.join()  # Espera a thread terminar de fato
-                log_file.write("\n⏱️ Build travado ou demorando demais\n")
-                log_file.flush()
-                raise RuntimeError("Build travado ou demorando demais")
-
-    # Aguarda a thread acabar, caso ainda não tenha finalizado
-    t.join()
-
-    # Agora é seguro lidar com output e prints
-    full_output = output_log.getvalue()
-
-    if "Traceback" in full_output or "ValueError" in full_output:
-        with open(log_path, "a") as log_file:
-            log_file.write("\n❌ Erro detectado no build\n")
-        print("❌ Erro detectado no build")  # só aqui o print é feito, após a thread
-        raise RuntimeError("Erro detectado no build")
-
-    return full_output
-
-
 def try_alternate_foldings(base_folding, onnx_path, estimate_layer_cycles, base_args, build_dir, run, summary_file, resource_limits):
     suffixes = ["PE", "SIMD"]
     strategies = [dict(only_pe=True), dict(only_simd=True)]
@@ -175,7 +104,7 @@ def try_alternate_foldings(base_folding, onnx_path, estimate_layer_cycles, base_
 
         try:
             start_time = time.time()
-            run_and_capture(args, log_path=log_path)
+            utils.run_and_capture(args, log_path=log_path)
             duration_sec = round(time.time() - start_time, 2)
 
             area_data = utils.extract_area_from_rpt(f"{build_dir}/{alt_hw_name}")
@@ -217,13 +146,14 @@ def try_alternate_foldings(base_folding, onnx_path, estimate_layer_cycles, base_
         best_folding = [f for f, n in valid_foldings if n == best][0]
         return best_folding, best
 
-bypass_first_phase = False
+bypass_first_phase = True
 summary_file = f"{build_dir}/run_summary.csv"
-#starting_build_dir = f"/home/arthurely/Desktop/finn/hara/builds/run_2025-04-21_04-51-11/t2w2_run4"
+starting_build_dir = f"/home/arthurely/Desktop/finn/hara/builds/run_2025-04-25_01-49-09/t2w8_run1_BOTH_4"
+#starting_build_dir = None
 #starting_json = f"{starting_build_dir}/final_hw_config.json"
+starting_json = "/home/arthurely/Desktop/finn/hara/builds/run_2025-04-25_01-49-09/t2w8_run1_BOTH_4_folding.json"
+#starting_json = None
 use_only_starting_json = False
-starting_build_dir = None
-starting_json = None
 
 RESOURCE_LIMITS = {
     "Total LUTs": 20000,
@@ -253,8 +183,8 @@ for tp in topologies:
                     "--run", str(run),
                     "--hw_name", first_hw_name,
                 ]
-                print(f"{build_dir}/build_{first_hw_name}.log")
-                run_and_capture(args, log_path=f"{build_dir}/build_{first_hw_name}.log")
+                #print(f"{build_dir}/build_{first_hw_name}.log")
+                utils.run_and_capture(args, log_path=f"{build_dir}/build_{first_hw_name}.log")
                 end_time = time.time()
                 duration_sec = round(end_time - start_time, 2)
                 
@@ -340,30 +270,27 @@ for tp in topologies:
                     break
             else:
                 last_build_dir = f"{build_dir}/{last_valid_hw_name}"
-                
-                #if consecutive_errors > 0:
-                #    last_build_dir = f"{build_dir}/{hw_name_hara}"
-                    
+                                   
                 if (starting_json and (run <= 1)):
-                    print(1)
+                    #print(1)
                     with open(starting_json, 'r') as f:
                         folding_input = json.load(f)
                     last_build_dir = starting_build_dir
                 else:
-                    print(2)
+                    #print(2)
                     folding_input = prev_folding
 
                 if run <= 1 and consecutive_errors > 0:
                     last_build_dir = f"{build_dir}/{last_valid_hw_name}"
 
-                print(f"[✓] Usando folding: {folding_input}")
+                #print(f"[✓] Usando folding: {folding_input}")
                 
                 if starting_build_dir:
                     onnx_path = f"{starting_build_dir}/intermediate_models/step_generate_estimate_reports.onnx"
                 else:
                     onnx_path = f"{build_dir}/{first_hw_name}/intermediate_models/step_generate_estimate_reports.onnx"
                 
-                print(f"Mudando aqui 1: {last_build_dir}/report/estimate_layer_cycles.json")
+                #print(f"Mudando aqui 1: {last_build_dir}/report/estimate_layer_cycles.json")
                 estimate_layer_cycles_path = f"{last_build_dir}/report/estimate_layer_cycles.json"
                 with open(estimate_layer_cycles_path, 'r') as f:
                         estimate_layer_cycles = json.load(f)
@@ -384,41 +311,94 @@ for tp in topologies:
                     #]
                     #
                     #for _ in range(consecutive_errors):                        
-                    #    run_and_capture(args, log_path=f"{build_dir}/build_{hw_name_hara}.log")
+                    #    utils.run_and_capture(args, log_path=f"{build_dir}/build_{hw_name_hara}.log")
                     #    estimate_layer_cycles_path = f"{build_dir}/{hw_name_hara}/report/estimate_layer_cycles.json"
                     #    with open(estimate_layer_cycles_path, 'r') as f:
                     #            estimate_layer_cycles = json.load(f)                        
                     #    folding_hara = utils.modify_folding(folding_hara, onnx_path, estimate_layer_cycles)
                 else:                  
-                    print(f"[!] Recursos excedidos no try_alternate_foldings: {flags}")
-                    folding_hara, hw_name_hara = try_alternate_foldings(
-                        folding_input, onnx_path, estimate_layer_cycles,
-                        base_args=args, build_dir=build_dir, run=run,
-                        summary_file=summary_file, resource_limits=RESOURCE_LIMITS
-                    )
-                    if folding_hara is None and hw_name_hara is None:
-                        print("[✗] Nenhum folding alternativo válido encontrado. Encerrando.")
-                        break
-                    last_valid_folding = folding_hara
-                    last_valid_hw_name = hw_name_hara
-                    print("LHN error: " + last_valid_hw_name)
-                    prev_folding = folding_hara
-                    consecutive_errors = 0
-                    run += 1
-                    print(f"Partindo pra próxima rodada...")
-                    continue
+                    #print(f"[!] Recursos excedidos no try_alternate_foldings: {flags}")
+                    #folding_hara, hw_name_hara = try_alternate_foldings(
+                    #    folding_input, onnx_path, estimate_layer_cycles,
+                    #    base_args=args, build_dir=build_dir, run=run,
+                    #    summary_file=summary_file, resource_limits=RESOURCE_LIMITS
+                    #)
+                    #if folding_hara is None and hw_name_hara is None:
+                    print("[✗] Nenhum folding alternativo válido encontrado. Encerrando.")
+                    break
+                    # last_valid_folding = folding_hara
+                    # last_valid_hw_name = hw_name_hara
+                    # prev_folding = folding_hara
+                    # consecutive_errors = 0
+                    # run += 1
+                    # print(f"Partindo pra próxima rodada...")
+                    # continue
             else:
-                folding_hara = utils.modify_folding(folding_input, onnx_path, estimate_layer_cycles)
-        
+                # gera três estratégias de folding
+                strategies = [
+                    {"only_pe": False, "only_simd": False, "suffix": "BOTH"},
+                ]
+                results = []  # vai guardar (suffix, throughput, folding_opt)
+                
+                for strat in strategies:
+                    folding_opt = folding_input                 
+                    name_opt = f"{hw_name_hara}_{strat['suffix']}"
+                    folding_path = os.path.join(build_dir, f"{name_opt}_folding.json")
+                    folding_opt = utils.modify_folding(
+                        folding_opt, onnx_path, estimate_layer_cycles,
+                        only_pe=strat["only_pe"], only_simd=strat["only_simd"]
+                    )
+                    with open(folding_path, 'w') as f:
+                        json.dump(folding_opt, f, indent=2)
+
+                    args_check = [
+                        "python3", "run_build.py",
+                        "--build_dir",    build_dir,
+                        "--topology",     str(tp['id']),
+                        "--target_fps",   str(config['check']['target_fps']),
+                        "--quant",        str(quant),
+                        "--steps",        json.dumps(config['check']['steps']),
+                        "--folding_file", folding_path,
+                        "--run",          str(run),
+                        "--hw_name",      name_opt,
+                    ]
+                    utils.run_and_capture(args_check, log_path=f"{build_dir}/build_{name_opt}.log")
+
+                    perf_path = os.path.join(build_dir, name_opt, "report", "estimate_network_performance.json")
+                    with open(perf_path) as f:
+                        perf = json.load(f)
+                    thr = perf.get("estimated_throughput_fps", 0.0)
+
+                    print(f"→ Estratégia {strat['suffix']}: throughput = {thr:.1f} fps")
+
+                    results.append((strat["suffix"], thr, folding_opt, name_opt))
+                                                 
+                # descobre o throughput máximo
+                max_thr = max(r[1] for r in results)
+                # todas as estratégias que atingiram esse throughput
+                tied = [r for r in results if abs(r[1] - max_thr) < 1e-6]
+
+                # se BOTH estiver empatado com alguém, removê-lo da disputa
+                if len(tied) > 1 and any(r[0] == "BOTH" for r in tied):
+                    tied = [r for r in tied if r[0] != "BOTH"]
+
+                if not tied:
+                    print("[✗] Nenhuma estratégia válida. Encerrando HARA.")
+                    break
+
+                # no mais, se restar mais de um, pega o primeiro
+                suffix, _, best_folding, best_name = tied[0]
+                folding_hara = best_folding
+                hw_name_hara = best_name
+                print(f"[✓] Estratégia selecionada: {suffix} (throughput={max_thr:.1f} fps)")
+                
             if folding_hara == prev_folding or folding_hara == first_json:
                 print(f"[✓] Folding estável alcançado após {run - 1} iteração(ões).")
                 break
 
             folding_path_hara = f"{build_dir}/{hw_name_hara}_folding.json"
             os.makedirs(os.path.dirname(folding_path_hara), exist_ok=True)
-            
-            print(folding_path_hara)
-            
+                       
             # argumentos para subprocesso
             args = [
                 "python3", "run_build.py",
@@ -437,15 +417,13 @@ for tp in topologies:
             
             try:
                 start_time = time.time()
-                run_and_capture(args, log_path=f"{build_dir}/build_{hw_name_hara}.log")
+                utils.run_and_capture(args, log_path=f"{build_dir}/build_{hw_name_hara}.log")
                 end_time = time.time()
                 duration_sec = round(end_time - start_time, 2)
                 
                 area_data = utils.extract_area_from_rpt(f"{build_dir}/{hw_name_hara}")
                 resource_diffs = utils.check_resource_usage(area_data, RESOURCE_LIMITS)
                 exceed = utils.raise_if_exceeds_limits(resource_diffs)
-                print(area_data)
-                print(resource_diffs)
                 if exceed:
                     consecutive_errors += 1
                     flags = utils.get_exceeded_resources_flags(resource_diffs)
@@ -461,7 +439,6 @@ for tp in topologies:
                     if flags["bram_exceed"] and (not flags["lut_exceed"]) and (not flags["ff_exceed"]) and (not flags["dsp_exceed"]):
                         last_valid_folding = folding_hara
                         last_valid_hw_name = hw_name_hara
-                        print("LHN bram: " + last_valid_hw_name)
                         prev_folding = folding_hara
                     continue
                 else:
@@ -483,9 +460,7 @@ for tp in topologies:
                     utils.plot_area_usage_from_csv(summary_file, f"{build_dir}/")
                     last_valid_folding = folding_hara
                     last_valid_hw_name = hw_name_hara
-                    print("LHN ok: " + last_valid_hw_name)
                     prev_folding = folding_hara
-                    print(prev_folding)
             except RuntimeError as e:
                 end_time = time.time()
                 duration_sec = round(end_time - start_time, 2)

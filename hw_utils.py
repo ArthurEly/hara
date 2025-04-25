@@ -318,96 +318,97 @@ class utils():
 
             plt.close()
 
-    def modify_folding(folding, onnx_path, estimate_layer_cycles, only_pe=False, only_simd=False):
-        def get_layer_features(onnx_path):
-            model = onnx.load(onnx_path)
-            features = {}
+    def modify_folding(folding, onnx_path, estimate_layer_cycles,
+                    only_pe=False, only_simd=False, mvau_wwidth_max=36, max_pe=128):
+        import onnx
+        from onnx import helper
 
+        def get_layer_features(path):
+            model = onnx.load(path)
+            feats = {}
             for node in model.graph.node:
-                layer_name = node.name
-                op_type = node.op_type
-                attr_dict = {attr.name: helper.get_attribute_value(attr) for attr in node.attribute}
+                name = node.name
+                op = node.op_type
+                attr = {a.name: helper.get_attribute_value(a) for a in node.attribute}
+                f = {"op_type": op}
+                if op in ["MVAU_hls", "MVAU_rtl"]:
+                    f["MW"] = int(attr.get("MW", 0))
+                    f["MH"] = int(attr.get("MH", 0))
+                    f["WBits"] = int(attr.get("WBits", 1))
+                if op.startswith("ConvolutionInputGenerator"):
+                    f["IFMChannels"] = int(attr.get("IFMChannels", 0))
+                    f["depthwise"]    = int(attr.get("depthwise", 0))
+                if op in ["FMPadding_rtl", "FMPadding_hls"]:
+                    f["NumChannels"] = int(attr.get("NumChannels", 0))
+                feats[name] = f
+            return feats
 
-                feat = {}
-                if op_type in ["MVAU_hls", "MVAU_rtl"]:
-                    feat["MW"] = int(attr_dict.get("MW", 0))
-                    feat["MH"] = int(attr_dict.get("MH", 0))
-                elif op_type in ["FMPadding_rtl", "FMPadding_hls"]:
-                    feat["NumChannels"] = int(attr_dict.get("NumChannels", 0))
-                elif op_type in ["ConvolutionInputGenerator_rtl", "ConvolutionInputGenerator_hls"]:
-                    feat["IFMChannels"] = int(attr_dict.get("IFMChannels", 0))
-                    feat["depthwise"] = int(attr_dict.get("depthwise", 0))
-                    feat["op_type"] = op_type
-                if feat:
-                    features[layer_name] = feat
-
-            return features
+        def next_divisor(n, current):
+            """
+            Retorna o menor divisor de n que é > current. 
+            Se não houver, retorna None.
+            """
+            for d in range(current+1, n+1):
+                if n % d == 0:
+                    return d
+            return None
 
         feature_dims = get_layer_features(onnx_path)
         new_folding = {}
         layers_modified = False
 
-        max_latency = max(estimate_layer_cycles.values())
-        critical_layers = [k for k, v in estimate_layer_cycles.items() if v == max_latency]
+        # Camadas críticas (maior latência estimada)
+        max_lat = max(estimate_layer_cycles.values())
+        critical = {k for k,v in estimate_layer_cycles.items() if v == max_lat}
 
-        print(only_pe, only_simd)
-        print(f"Camadas críticas: {critical_layers}")
-        print(f"Folding original: {folding}")
-        print(f"Estimativa de ciclos: {estimate_layer_cycles}")
-        print(f"Estimativa de ciclos (values): {estimate_layer_cycles.values()}")
-            
-        for layer in folding:
+        for layer, cfg in folding.items():
             if layer == "Defaults":
-                new_folding[layer] = {k: v for k, v in folding[layer].items() if k in ["PE", "SIMD"]}
+                new_folding[layer] = {k: cfg[k] for k in ("PE","SIMD") if k in cfg}
                 continue
 
-            cfg = folding[layer]
-            new_cfg = {k: v for k, v in cfg.items() if k in ["PE", "SIMD", "parallel_window"]}
-            layer_features = feature_dims.get(layer, {})
+            new_cfg = {k: cfg[k] for k in ("PE","SIMD","parallel_window") if k in cfg}
+            f = feature_dims.get(layer, {})
             modified = False
 
-            if layer in critical_layers:
-                op_type = layer_features.get("op_type", "")
-                if op_type.startswith("ConvolutionInputGenerator") and layer_features.get("depthwise", 0) == 0:
-                    if op_type == "ConvolutionInputGenerator_rtl":
-                        ifm_channels = layer_features.get("IFMChannels", 0)
-                        current_simd = new_cfg.get("SIMD", 1)
-                        if current_simd == ifm_channels:
-                            new_cfg["parallel_window"] = 1
-                            print(f"[→] Ativado parallel_window em {layer}")
-                            modified = True
+            if layer in critical:
+                op = f.get("op_type","")
 
-                # Tentar modificar SIMD
-                if not only_pe and "SIMD" in new_cfg:
-                    mw = layer_features.get("MW") or layer_features.get("IFMChannels") or layer_features.get("NumChannels")
-                    if mw:
-                        new_simd = new_cfg["SIMD"] * 2
-                        while new_simd > 1 and mw % new_simd != 0:
-                            new_simd -= 1
-                        if new_simd > new_cfg["SIMD"] and mw % new_simd == 0:
-                            new_cfg["SIMD"] = new_simd
-                            modified = True
-
-                # Tentar modificar PE
-                if not only_simd and "PE" in new_cfg and "MH" in layer_features:
-                    mh = layer_features["MH"]
-                    new_pe = new_cfg["PE"] * 2
-                    while new_pe > 1 and mh % new_pe != 0:
-                        new_pe -= 1
-                    if new_pe > new_cfg["PE"] and mh % new_pe == 0:
-                        new_cfg["PE"] = new_pe
+                # Caso especial de ConvInpGen depthwise=0
+                if op.startswith("ConvolutionInputGenerator") and f.get("depthwise",1)==0:
+                    if new_cfg.get("SIMD",1) == f.get("IFMChannels",0):
+                        new_cfg["parallel_window"] = 1
                         modified = True
 
-                if modified:
-                    layers_modified = True
-                    print(f"[↑] Modificado: {layer} - PE: {cfg.get('PE')}→{new_cfg.get('PE')}, SIMD: {cfg.get('SIMD')}→{new_cfg.get('SIMD')}")
-                else:
-                    print(f"[=] Não modificado: {layer} - PE: {cfg.get('PE')}, SIMD: {cfg.get('SIMD')}")
-                    
+                # 1) Avançar SIMD para o próximo divisor da dimensão relevante
+                if not only_pe and "SIMD" in new_cfg:
+                    # escolhe a dimensão: MW, IFMChannels ou NumChannels
+                    dim = f.get("MW") or f.get("IFMChannels") or f.get("NumChannels")
+                    simd0 = new_cfg["SIMD"]
+                    nxt = next_divisor(dim, simd0)
+                    if nxt is not None:
+                        # verifica condição de largura de stream p/ MVAU
+                        if not op.startswith("MVAU") or (nxt * f.get("WBits",1)) <= new_cfg.get("PE",1) * mvau_wwidth_max:
+                            new_cfg["SIMD"] = nxt
+                            modified = True
+
+                # 2) Só avança PE se SIMD não mudou
+                if not modified and not only_simd and "PE" in new_cfg:
+                    mh = f.get("MH")
+                    pe0 = new_cfg["PE"]
+                    nxt_pe = next_divisor(mh, pe0)
+                    if nxt_pe is not None and nxt_pe <= max_pe:
+                        new_cfg["PE"] = nxt_pe
+                        modified = True
+
+            if modified:
+                layers_modified = True
+                print(f"[↑] {layer}: PE {cfg.get('PE')}→{new_cfg.get('PE')}, SIMD {cfg.get('SIMD')}→{new_cfg.get('SIMD')}")
+            #else:
+                #print(f"[=] {layer}: sem modificação (PE {cfg.get('PE')}, SIMD {cfg.get('SIMD')})")
+
             new_folding[layer] = new_cfg
 
         return folding if not layers_modified else new_folding
-
 
     def get_exceeded_resources_flags(resource_diffs):
         return {
@@ -445,6 +446,66 @@ class utils():
                 msg_lines.append(f"  - {res}: excedido por {amount}")
             return exceeded
         return None
+
+
+    def run_and_capture(args, timeout_sec=7200, log_path="build.log"):
+        from io import StringIO
+        import subprocess, threading, os
+
+        output_log = StringIO()
+
+        print(f"🛠️  [BUILD] Rodando subprocesso para {args[-1]}...")
+
+        env = os.environ.copy()
+        env["PYTHONBREAKPOINT"] = "0"
+
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+
+        with open(log_path, "w") as log_file:
+            with subprocess.Popen(
+                args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                text=True,
+                bufsize=1,
+                env=env
+            ) as proc:
+                # Define a função de monitoramento
+                def monitor_output():
+                    for line in proc.stdout:
+                        output_log.write(line)
+                        log_file.write(line)
+                        log_file.flush()
+
+                # Inicia a thread
+                t = threading.Thread(target=monitor_output)
+                t.start()
+
+                # Espera o tempo limite
+                t.join(timeout=timeout_sec)
+
+                # Se a thread ainda estiver viva, o processo travou
+                if t.is_alive():
+                    proc.kill()
+                    t.join()  # Espera a thread terminar de fato
+                    log_file.write("\n⏱️ Build travado ou demorando demais\n")
+                    log_file.flush()
+                    raise RuntimeError("Build travado ou demorando demais")
+
+        # Aguarda a thread acabar, caso ainda não tenha finalizado
+        t.join()
+
+        # Agora é seguro lidar com output e prints
+        full_output = output_log.getvalue()
+
+        if "Traceback" in full_output or "ValueError" in full_output:
+            with open(log_path, "a") as log_file:
+                log_file.write("\n❌ Erro detectado no build\n")
+            print("❌ Erro detectado no build")  # só aqui o print é feito, após a thread
+            raise RuntimeError("Erro detectado no build")
+
+        return full_output
 
     def build_hardware(build_dir,topology, target_fps, topology_class, quant, steps, folding_file, run, hw_name):
         def make_onnx(build_dir, cnv,quant,topology):
