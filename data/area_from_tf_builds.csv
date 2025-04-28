@@ -1,0 +1,2 @@
+Total LUTs,Logic LUTs,LUTRAMs,SRLs,FFs,BRAM (36k),DSP Blocks,build_dir,estimated_throughput_fps
+11780,10758,182,840,14309,8.5,1,/home/arthurely/Desktop/finn/notebooks/sat6_cnn/builds_HARA_proof_not_two_pass/t2w4_44000fps_u,48514.156916129694

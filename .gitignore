@@ -9,3 +9,4 @@ last_run
 /plots
 test.py
 test.py
+*.pdf
