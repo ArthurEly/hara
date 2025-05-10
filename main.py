@@ -312,7 +312,8 @@ def main():
 
         output_base_path = "spot_checking_results_1/"
         os.makedirs(output_base_path, exist_ok=True)
-        metrics_file = os.path.join(output_base_path, 'all_metrics.txt')
+        cv_metrics_file = os.path.join(output_base_path, 'cv_metrics.txt')
+        all_metrics_file = os.path.join(output_base_path, 'all_metrics.txt')
 
         n_splits = 10
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
@@ -335,6 +336,24 @@ def main():
 
             metrics_list = []
 
+            print(f"=== Evaluating {name} on the entire dataset ===")
+            entire_output_path = os.path.join(output_base_path, name, 'entire_dataset')
+            os.makedirs(entire_output_path, exist_ok=True)
+            metrics = model_wrapper(
+                X_train_scaled, y_train_scaled, X_test_scaled, y_test_scaled,
+                output_path=entire_output_path,
+                targets=args.target,
+                model=model,
+                target_scaler=target_scaler,
+                args=args
+            )
+            with open(all_metrics_file, 'a') as f:
+                f.write(f"Model: {name}\n")
+                f.write(f"Mean Squared Error: {metrics['mse']:.4f}\n")
+                f.write(f"R^2 Score: {metrics['r2']:.4f}\n")
+                f.write("\n")
+            print(f"Metrics saved to {all_metrics_file}")
+
             for fold, (train_idx, test_idx) in enumerate(kf.split(X)):
                 print(f"\n--- Fold {fold+1}/{n_splits} ---")
         
@@ -345,13 +364,13 @@ def main():
                 print(f"Fold {fold+1} - Training instances: {len(train_idx)}, Testing instances: {len(test_idx)}")
 
                 # Scale inside CV loop
-                feature_scaler = MinMaxScaler()
-                X_train_scaled = feature_scaler.fit_transform(X_train_fold)
-                X_test_scaled = feature_scaler.transform(X_test_fold)
+                feature_scaler_cv = MinMaxScaler()
+                X_train_scaled_cv = feature_scaler_cv.fit_transform(X_train_fold)
+                X_test_scaled_cv = feature_scaler_cv.transform(X_test_fold)
 
-                target_scaler = MinMaxScaler()
-                y_train_scaled = target_scaler.fit_transform(y_train_fold)
-                y_test_scaled = target_scaler.transform(y_test_fold)
+                target_scaler_cv = MinMaxScaler()
+                y_train_scaled_cv = target_scaler_cv.fit_transform(y_train_fold)
+                y_test_scaled_cv = target_scaler_cv.transform(y_test_fold)
 
                 fold_output_path = os.path.join(model_output_path, f"fold_{fold+1}")
                 if os.path.exists(fold_output_path):
@@ -360,11 +379,11 @@ def main():
 
                 # Modify model_wrapper to return metrics
                 metrics = model_wrapper(
-                    X_train_scaled, y_train_scaled, X_test_scaled, y_test_scaled,
+                    X_train_scaled_cv, y_train_scaled_cv, X_test_scaled_cv, y_test_scaled_cv,
                     output_path=fold_output_path,
                     targets=args.target,
                     model=model,
-                    target_scaler=target_scaler,
+                    target_scaler=target_scaler_cv,
                     args=args
                 )
 
@@ -382,12 +401,15 @@ def main():
             print(f"\n{name} - Avg MSE: {avg_mse:.4f} (+/- {std_mse:.4f})")
             print(f"{name} - Avg R^2: {avg_r2:.4f} (+/- {std_r2:.4f})")
 
-            with open(metrics_file, 'a') as f:
+            with open(cv_metrics_file, 'a') as f:
                 f.write(f"Model: {name}\n")
                 f.write(f"Average Mean Squared Error: {avg_mse:.4f} (+/- {std_mse:.4f})\n")
                 f.write(f"Average R^2 Score: {avg_r2:.4f} (+/- {std_r2:.4f})\n")
                 f.write("\n")
             
+            print(f"Cross-validation metrics saved to {cv_metrics_file}")
+            print("Cross-validation completed.")
+
     exit()
 
     if args.model == 'random_forest':
