@@ -55,6 +55,10 @@ def get_random_data(path: str):
     """
 
     data = pd.read_csv(path)
+
+    # Remove the instance where Repo = 'MVAU_hls_0' and NodeName = 't1w8_50000fps_u'
+    data = data[~((data['NodeName'] == 'MVAU_hls_0') & (data['Repo'] == 't1w8_50000fps_u'))]
+
     train_data = data.sample(frac=0.8, random_state=42)
     test_data = data.drop(train_data.index)
 

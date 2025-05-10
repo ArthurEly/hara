@@ -272,6 +272,8 @@ def main():
     if(args.target == 'all'):
         args.target = ['Total LUTs','FFs','RAMBs','DSP Blocks']
 
+    # remove specific data from the input
+
     if(args.split == 'random'):
         train, test = get_random_data(args.input)
     else:
@@ -310,7 +312,7 @@ def main():
     if args.tuning == 'no':
         print("Tuning is disabled. Using default parameters for all models.")
 
-        output_base_path = "spot_checking_results_1/"
+        output_base_path = "spot_checking_results_2/"
         os.makedirs(output_base_path, exist_ok=True)
         cv_metrics_file = os.path.join(output_base_path, 'cv_metrics.txt')
         all_metrics_file = os.path.join(output_base_path, 'all_metrics.txt')
