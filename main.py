@@ -8,6 +8,7 @@ from sklearn.multioutput import MultiOutputRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.neural_network import MLPRegressor
+from sklearn.svm import SVR
 from xgboost import XGBRegressor
 from sklearn.model_selection import KFold
 import shutil
@@ -269,14 +270,24 @@ def main():
     if(args.target == 'luts'):
         args.target = ['Total LUTs']
     if(args.target == 'all'):
-        args.target = ['Total LUTs', 'Logic LUTs','LUTRAMs','FFs','RAMB36','RAMB18','DSP Blocks']
+        args.target = ['Total LUTs','FFs','RAMBs','DSP Blocks']
 
     if(args.split == 'random'):
         train, test = get_random_data(args.input)
     else:
         train, test = get_data_fps(args.input, args.split)
-    train = train.drop(columns=['Repo', 'NodeName', 'SRLs'])
-    test = test.drop(columns=['Repo', 'NodeName','SRLs'])
+    # Drop unnecessary columns
+    train = train.drop(columns=['Repo', 'NodeName', 'SRLs', 'Logic LUTs', 'LUTRAMs'])
+    test = test.drop(columns=['Repo', 'NodeName', 'SRLs', 'Logic LUTs', 'LUTRAMs'])
+
+    # Add columns 'RAMB36' and 'RAMB18' and combine them into 'RAMBs'
+    train['RAMBs'] = train['RAMB36'] + train['RAMB18']
+    test['RAMBs'] = test['RAMB36'] + test['RAMB18']
+
+    # Remove the 'RAMB36' and 'RAMB18' columns
+    train = train.drop(columns=['RAMB36', 'RAMB18'])
+    test = test.drop(columns=['RAMB36', 'RAMB18'])
+
     X_train, y_train = split_data(train, args.target)
     X_test, y_test = split_data(test, args.target)
 
@@ -299,17 +310,19 @@ def main():
     if args.tuning == 'no':
         print("Tuning is disabled. Using default parameters for all models.")
 
-        output_base_path = "spot_checking_results/"
+        output_base_path = "spot_checking_results_1/"
         os.makedirs(output_base_path, exist_ok=True)
+        metrics_file = os.path.join(output_base_path, 'all_metrics.txt')
 
-        n_splits = 5
+        n_splits = 10
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
 
         models = {
             'random_forest': MultiOutputRegressor(RandomForestRegressor(n_estimators=100, random_state=42)),
             'mlp': MultiOutputRegressor(create_nn_model()),
             'knn': MultiOutputRegressor(KNeighborsRegressor(n_neighbors=5)),
-            'xgboost': MultiOutputRegressor(XGBRegressor(n_estimators=100, objective='reg:squarederror', random_state=42))
+            'xgboost': MultiOutputRegressor(XGBRegressor(n_estimators=100, objective='reg:squarederror', random_state=42)),
+            'svr': MultiOutputRegressor(SVR(kernel='rbf', C=1.0, epsilon=0.1))
         }
 
         X = pd.concat([X_train, X_test]).values
@@ -328,6 +341,8 @@ def main():
                 # Split data
                 X_train_fold, X_test_fold = X[train_idx], X[test_idx]
                 y_train_fold, y_test_fold = y[train_idx], y[test_idx]
+
+                print(f"Fold {fold+1} - Training instances: {len(train_idx)}, Testing instances: {len(test_idx)}")
 
                 # Scale inside CV loop
                 feature_scaler = MinMaxScaler()
@@ -358,9 +373,21 @@ def main():
             # Aggregate metrics
             mse_vals = [m['mse'] for m in metrics_list]
             r2_vals = [m['r2'] for m in metrics_list]
-            print(f"\n{name} - Avg MSE: {np.mean(mse_vals):.4f} (+/- {np.std(mse_vals):.4f})")
-            print(f"{name} - Avg R^2: {np.mean(r2_vals):.4f} (+/- {np.std(r2_vals):.4f})")
 
+            avg_mse = np.mean(mse_vals)
+            std_mse = np.std(mse_vals)
+            avg_r2 = np.mean(r2_vals)
+            std_r2 = np.std(r2_vals)
+
+            print(f"\n{name} - Avg MSE: {avg_mse:.4f} (+/- {std_mse:.4f})")
+            print(f"{name} - Avg R^2: {avg_r2:.4f} (+/- {std_r2:.4f})")
+
+            with open(metrics_file, 'a') as f:
+                f.write(f"Model: {name}\n")
+                f.write(f"Average Mean Squared Error: {avg_mse:.4f} (+/- {std_mse:.4f})\n")
+                f.write(f"Average R^2 Score: {avg_r2:.4f} (+/- {std_r2:.4f})\n")
+                f.write("\n")
+            
     exit()
 
     if args.model == 'random_forest':
