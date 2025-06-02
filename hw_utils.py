@@ -573,19 +573,56 @@ class utils():
 
         return folding if not layers_modified else new_folding
 
-    def reset_folding(folding):
-        """
-        Reseta todos os PEs e SIMDs do folding para 1.
-        """
+    def reset_folding(folding, onnx_path):
+        import onnx
+        from onnx import helper
+
+        def get_layer_features(path):
+            model = onnx.load(path)
+            feats = {}
+            for node in model.graph.node:
+                name = node.name
+                op = node.op_type
+                attr = {a.name: helper.get_attribute_value(a) for a in node.attribute}
+                f = {"op_type": op}
+                if op in ["MVAU_hls", "MVAU_rtl"]:
+                    f["MW"] = int(attr.get("MW", 0))
+                    f["MH"] = int(attr.get("MH", 0))
+                    f["WBits"] = int(attr.get("WBits", 1))
+                feats[name] = f
+            return feats
+
+        def min_valid_simd(mw):
+            simd = max(1, -(-mw // 1024))  # ceil(mw / 1024)
+            for d in range(simd, mw + 1):
+                if mw % d == 0:
+                    return d
+            return mw
+
+        feature_dims = get_layer_features(onnx_path)
         new_folding = {}
 
         for layer, cfg in folding.items():
+            if layer == "Defaults":
+                new_folding[layer] = dict(cfg)
+                continue
+
             new_cfg = {}
+            f = feature_dims.get(layer, {})
+            op = f.get("op_type", "")
+            mw = f.get("MW", 0)
+
             for key in cfg:
-                if key in ("PE", "SIMD"):
-                    new_cfg[key] = 1
+                if key == "PE":
+                    new_cfg["PE"] = 1
+                elif key == "SIMD":
+                    if op.startswith("MVAU") and mw > 0:
+                        new_cfg["SIMD"] = min_valid_simd(mw)
+                    else:
+                        new_cfg["SIMD"] = 1
                 else:
                     new_cfg[key] = cfg[key]
+
             new_folding[layer] = new_cfg
 
         return new_folding
@@ -597,7 +634,6 @@ class utils():
             "bram_exceed": resource_diffs.get("BRAM (36k)", 0) < 0,
             "dsp_exceed": resource_diffs.get("DSP Blocks", 0) < 0,
         }
-
 
     def check_resource_usage(area_data, limits):
         if area_data is None:

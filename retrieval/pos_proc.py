@@ -21,7 +21,7 @@ def clean_listlike_column(val):
 def expand_listlike_columns(df):
     cols_to_expand = [col for col in df.columns if df[col].apply(is_listlike_string).any()]
     for col in cols_to_expand:
-        print(f"Expandindo coluna: {col}")
+        #print(f"Expandindo coluna: {col}")
         new_col = f"{col} (dimensions flattened)"
         idx = df.columns.get_loc(col)
         expanded_series = df[col].apply(clean_listlike_column)
@@ -30,7 +30,7 @@ def expand_listlike_columns(df):
     return df
 
 def extract_bitwidth(x):
-    print(x)
+    #print(x)
     x_str = str(x).upper()
     if "B'BINARY" in x_str:
         return 1
@@ -94,7 +94,7 @@ def clean_dataframe(df):
     # Inserir colunas "(bits)" logo após as colunas de tipo de dado
     datatype_cols = [col for col in df.columns if "datatype" in col.lower()]
     for col in datatype_cols:
-        print(f"Expandindo bits: {col}")
+        #print(f"Expandindo bits: {col}")
         new_col = f"{col} (bits)"
         bitwidths = df[col].apply(extract_bitwidth)
         col_idx = df.columns.get_loc(col)
@@ -127,6 +127,13 @@ def clean_dataframe(df):
         column for column in upper.columns
         if any(upper[column] > 0.98) and column not in preserve_cols
     ]
+    
+    # Adicione este print para exibir as colunas que serão removidas
+    if to_drop_corr:
+        print("Removendo colunas altamente correlacionadas:", to_drop_corr)
+    else:
+        print("Nenhuma coluna removida por alta correlação.")
+    
     df.drop(columns=to_drop_corr, inplace=True)
 
     # 4. Remover duplicatas
@@ -184,7 +191,7 @@ summary_df = pd.DataFrame(summary).T
 summary_df.index.name = "Operator"
 summary_df.reset_index(inplace=True)
 
-print(summary_df)
+#print(summary_df)
 
 # Salvar os arquivos limpos
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")

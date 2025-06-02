@@ -28,9 +28,9 @@ finn_build_dir = os.environ["FINN_BUILD_DIR"] + '/'
 target_fps = 1
 topologies = [
     {
-        'id':2, 
-        'tp_class':t2_quantizedCNN,
-        'quant': [4]
+        'id':1, 
+        'tp_class':t1_quantizedCNN,
+        'quant': [2,4,8]
     }
 ]
 
@@ -132,13 +132,13 @@ def try_alternate_foldings(base_folding, onnx_path, estimate_layer_cycles, base_
         best_folding = [f for f, n in valid_foldings if n == best][0]
         return best_folding, best
 
-bypass_first_phase = True
+bypass_first_phase = False
 summary_file = f"{build_dir}/run_summary.csv"
-starting_build_dir = f"/home/arthurely/Desktop/finn/hara/builds/run_2025-04-27_01-35-02/t2w4_run0"
-#starting_build_dir = None
-starting_json = f"{starting_build_dir}/final_hw_config.json"
+#starting_build_dir = f"/home/arthurely/Desktop/finn/hara/builds/run_2025-04-27_01-35-02/t2w4_run0"
+starting_build_dir = None
+#starting_json = f"{starting_build_dir}/final_hw_config.json"
 #starting_json = f"/home/arthurely/Desktop/finn/hara/builds/run_2025-04-26_08-48-50/t2w4_run22_20_BOTH/final_hw_config.json"
-#starting_json = None
+starting_json = None
 use_only_starting_json = False
 
 max_resources = {
@@ -204,7 +204,8 @@ for tp in topologies:
                 #print(f"{build_dir}/build_{first_hw_name}.log")
                 utils.run_and_capture(args, log_path=f"{build_dir}/build_{first_hw_name}.log")
                 folding = utils.read_folding_config(f"{build_dir}/{first_hw_name}")
-                folding = utils.reset_folding(folding)
+                onnx_path = f"{build_dir}/{first_hw_name}/intermediate_models/step_generate_estimate_reports.onnx"
+                folding = utils.reset_folding(folding, onnx_path)
                 # Salva o folding resetado
                 folding_path = os.path.join(build_dir, f"{build_dir}/{first_hw_name}_folding_reset.json")
                 with open(folding_path, "w") as f:
@@ -259,7 +260,7 @@ for tp in topologies:
                     duration=duration_sec, 
                     resource_limits=RESOURCE_LIMITS
                 )
-                flags = utils.get_exceeded_resources_flags(resource_diffs)
+                flags = utils.get_exceeded_resources_flags(RESOURCE_LIMITS)
                 print(f"[!] Recursos excedidos: {flags}")
                 print(f"O hardware {first_hw_name} falhou na primeira execução. ")
                 break
@@ -276,7 +277,8 @@ for tp in topologies:
         max_errors = 10
         max_runs = -1
         modify_funcs = [
-            #utils.modify_folding_greedy,    
+            utils.modify_folding,
+            utils.modify_folding_greedy,    
             utils.modify_folding_naive,    
         ]
         
