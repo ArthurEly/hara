@@ -1,6 +1,7 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 
 def get_data_t1t2(path: str):
     """
@@ -121,3 +122,75 @@ def plot_correlation_matrix(df, target_columns, threshold=0.2, save_path=None):
         plt.savefig(save_path)
     else:
         plt.show()
+
+def new_corr_matrix(df):
+    """
+    Computes the correlation matrix for a DataFrame and includes feature names in the plot.
+
+    Args:
+        df (pd.DataFrame): The data.
+
+    Returns:
+        pd.DataFrame: The correlation matrix.
+    """
+    correlation_matrix = df.corr(numeric_only=True)  # numeric_only avoids issues with object-type columns
+    plt.figure(figsize=(14, 10))
+    sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap='coolwarm', 
+                linewidths=0.5, xticklabels=correlation_matrix.columns, 
+                yticklabels=correlation_matrix.columns)
+    plt.title("Full Correlation Matrix", fontsize=16)
+    plt.tight_layout()
+    plt.savefig("full_correlation_matrix_new.png")
+    plt.close()
+
+def plot_cumulative_feature_importance(model, feature_names, target_names):
+    """
+    Plots the cumulative feature importances from multiple target variables in a single plot.
+    
+    Args:
+        model (MultiOutputRegressor): The multi-output regressor model.
+        feature_names (list): List of feature names.
+        target_names (list): List of target variable names.
+    """
+    # Initialize an array to accumulate the importances for each feature
+    cumulative_importances = np.zeros(len(feature_names))
+    
+    # Loop through each target and add the importances
+    for i, target in enumerate(target_names):
+        importances = model.estimators_[i].feature_importances_
+        cumulative_importances += importances
+        
+    # Normalize by the number of targets
+    #cumulative_importances /= len(target_names)
+    
+    # Get the indices to sort the features by importance
+    indices = cumulative_importances.argsort()[::-1]
+
+    # Create the plot
+    plt.figure(figsize=(12, 8))
+    sns.barplot(x=cumulative_importances[indices], y=[feature_names[i] for i in indices])
+    plt.title('Cumulative Feature Importances')
+    plt.xlabel('Cumulative Importance')
+    plt.ylabel('Feature')
+    plt.tight_layout()
+    plt.savefig('cumulative_feature_importances_no_norm.png')
+    plt.close()
+
+def get_instance(X_test):
+    """
+    Selects a random instance from the test set.
+
+    Args:
+        X_test (pd.DataFrame): The test set features.
+
+    Returns:
+        pd.Series: A random instance from the test set.
+    """
+    
+    if X_test.empty:
+        raise ValueError("X_test is empty. Cannot select a random instance.")
+    
+    random_index = np.random.choice(X_test.index)
+    print(f"Selected random instance index: {random_index}")
+    return X_test.loc[random_index]
+    
