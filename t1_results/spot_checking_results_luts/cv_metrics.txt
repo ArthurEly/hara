@@ -1,0 +1,20 @@
+Model: random_forest
+Average Mean Squared Error: 0.5430 (+/- 0.4647)
+Average R^2 Score: 0.9480 (+/- 0.0573)
+
+Model: mlp
+Average Mean Squared Error: 1.1200 (+/- 0.7840)
+Average R^2 Score: 0.8926 (+/- 0.1101)
+
+Model: knn
+Average Mean Squared Error: 2.4584 (+/- 2.1143)
+Average R^2 Score: 0.7760 (+/- 0.2111)
+
+Model: xgboost
+Average Mean Squared Error: 0.6703 (+/- 0.6992)
+Average R^2 Score: 0.9362 (+/- 0.0794)
+
+Model: svr
+Average Mean Squared Error: 1.6263 (+/- 0.7592)
+Average R^2 Score: 0.8507 (+/- 0.0834)
+
