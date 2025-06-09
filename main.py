@@ -3,60 +3,91 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import argparse
 from xmtr import *
-from utils import get_data_fps, get_data_t1t2, get_random_data, split_data, plot_correlation_matrix, new_corr_matrix, plot_cumulative_feature_importance
-from utils import get_instance
+from utils import get_data_fps, get_random_data, split_data, remove_split_columns
+from utils import perform_feature_importance_analysis, perform_correlation_analysis
+from utils import tune_model, run_random_forest_experiment
 
-label_area_path = 'retrieval/results/vivado_LabelSelect_area_attrs.csv'
-conv_area_path = 'retrieval/results/vivado_ConvolutionInputGenerator_area_attrs.csv'
-padding_area_path = 'retrieval/results/vivado_FMPadding_area_attrs.csv'
-mvau_area_path = 'retrieval/results/vivado_MVAU_area_attrs.csv'
-data_w_area_path = 'retrieval/results/vivado_StreamingDataWidthConverter_area_attrs.csv'
-fifo_area_path = 'retrieval/results/vivado_StreamingFIFO_area_attrs.csv'
+label_area_path = 'retrieval/results/splitted/preprocessed/vivado_LabelSelect_area_attrs_cleaned.csv'
+conv_area_path = 'retrieval/results/splitted/preprocessed/vivado_ConvolutionInputGenerator_area_attrs_cleaned.csv'
+padding_area_path = 'retrieval/results/splitted/preprocessed/vivado_FMPadding_area_attrs_cleaned.csv'
+mvau_area_path = 'retrieval/results/splitted/preprocessed/vivado_MVAU_area_attrs_cleaned.csv'
+data_w_area_path = 'retrieval/results/splitted/preprocessed/vivado_StreamingDataWidthConverter_area_attrs_cleaned.csv'
+fifo_area_path = 'retrieval/results/splitted/preprocessed/vivado_StreamingFIFO_area_attrs_cleaned.csv'
 
+DATASET_PATHS = {
+    'label_select': 'retrieval/results/splitted/preprocessed/vivado_LabelSelect_area_attrs_cleaned.csv',
+    'convolution': 'retrieval/results/splitted/preprocessed/vivado_ConvolutionInputGenerator_area_attrs_cleaned.csv',
+    'padding': 'retrieval/results/splitted/preprocessed/vivado_FMPadding_area_attrs_cleaned.csv',
+    'mvau': 'retrieval/results/splitted/preprocessed/vivado_MVAU_area_attrs_cleaned.csv',
+    'data_width_converter': 'retrieval/results/splitted/preprocessed/vivado_StreamingDataWidthConverter_area_attrs_cleaned.csv',
+    'fifo': 'retrieval/results/splitted/preprocessed/vivado_StreamingFIFO_area_attrs_cleaned.csv'
+}
 
 def main():
     parser = argparse.ArgumentParser(description='HARA')
     
-    parser.add_argument('--input', type=str, help='Input CSV file path', default=label_area_path)
+    parser.add_argument('--input', type=str, help='Name of the dataset to use.',default='mvau', choices=DATASET_PATHS.keys())
     parser.add_argument('--output', type=str, help='Output CSV file path', default='results/')
     parser.add_argument('--model', type=str, help='Model type', default='random_forest')
     parser.add_argument('--split', type=str, help='Split type', default='random')
     parser.add_argument('--target', type=str, help='Target variable', default='all')
     parser.add_argument('--plot', type=str, help='Plot type', default='corr')
-    parser.add_argument('--tuning', type=bool, help='Tuning model or not', default=False)
-    parser.add_argument('--importance', type=bool, help='Feature importance or not', default=False)
-    parser.add_argument('--interpret', type=bool, help='Interpretation or not', default=False)
+
+    parser.add_argument('--tuning', action='store_true', help='Tuning model or not', default=True)
+    parser.add_argument('--importance', action='store_true', help='Feature importance or not', default=True)
+    parser.add_argument('--correlation', action='store_true', help='Correlation analysis or not', default=True)
+    parser.add_argument('--interpret', action='store_true', help='Interpretation or not')
 
     args = parser.parse_args()
 
-    args.output = args.output + args.model + '/' + args.split + '/' 
-    os.makedirs(args.output, exist_ok=True)
+    output_directory = os.path.join(args.output, args.input, args.model)
+    os.makedirs(output_directory, exist_ok=True)
+    input_filepath = DATASET_PATHS[args.input]
 
-    # print all the columns names in the input file
-    print("Input file columns:", pd.read_csv(args.input).columns.tolist())
+    train, test = get_random_data(input_filepath)
 
-    # print one instance of the the files:
-    for file in [label_area_path, conv_area_path, padding_area_path, mvau_area_path, data_w_area_path, fifo_area_path]:
-        print("Input file path:", file)
-        print("One instance of the input file:")
-        print(pd.read_csv(file).iloc[0])
+    if(args.target == 'luts'):
+        args.target = ['Total LUTs']
+    if(args.target == 'all'):
+        args.target = ['Total LUT','Total FFs','BRAM (36k eq.)','DSP Blocks']
 
-    # if(args.split == 'random'):
-    #     train, test = get_random_data(args.input)
-    # else:
-    #     train, test = get_data_fps(args.input, args.split)
+    X_train, y_train = split_data(train, args.target)
+    X_test, y_test = split_data(test, args.target)
+
+    if args.importance:
+
+        importance_output_path = os.path.join(output_directory, 'feature_importance')
+        os.makedirs(importance_output_path, exist_ok=True)
+        unimportant_features, all_feature_importances = perform_feature_importance_analysis(X_train=X_train, y_train=y_train, model_type=args.model, 
+                                                                                            output_path=importance_output_path, importance_threshold=0.015)
+        X_train, X_test = remove_split_columns(X_train, X_test, unimportant_features)
+        y_train, y_test = remove_split_columns(y_train, y_test, unimportant_features)
+        print(f"Removed {len(unimportant_features)} features based on importance threshold.")
+
+    if args.correlation:
+        correlation_output_path = os.path.join(output_directory, 'correlation')
+        os.makedirs(correlation_output_path, exist_ok=True)
+        correlated_features_to_remove = perform_correlation_analysis(X_train=X_train, y_train=y_train, output_path=correlation_output_path, feature_importances=all_feature_importances, threshold=0.9)
+        X_train, X_test = remove_split_columns(X_train, X_test, correlated_features_to_remove)
+        y_train, y_test = remove_split_columns(y_train, y_test, correlated_features_to_remove)
+        print(f"Removed {len(correlated_features_to_remove)} features based on correlation and importance.")
+
+    if args.tuning:
+        print("Tuning model...")
+        model = tune_model(X_train, y_train, model_type=args.model)
     
-    # train = train.drop(columns=['Repo', 'NodeName', 'SRLs'])
-    # test = test.drop(columns=['Repo', 'NodeName', 'SRLs'])
+    if args.model == 'random_forest':
+        run_random_forest_experiment(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, output_path=output_directory)
 
-    # if(args.target == 'luts'):
-    #     args.target = ['Total LUTs']
-    # if(args.target == 'all'):
-    #     # args.target = ['Total LUTs','FFs','RAMBs','DSP Blocks']
-    #     args.target = ['Total LUTs','FFs','RAMB36','RAMB18','DSP Blocks']
+    elif args.model == 'xgboost':
+        print("Training XGBoost model...")
+        # model = train_xgboost(X_train, y_train)
 
-    # X_train, y_train = split_data(train, args.target)
-    # X_test, y_test = split_data(test, args.target)
+    elif args.model == 'neural_network':
+        print("Training neural network model...")
+        
+
+
 
     # if (args.interpret):
     #     if(args.model == 'random_forest')
