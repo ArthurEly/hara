@@ -3,16 +3,9 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import argparse
 from xmtr import *
-from utils import get_data_fps, get_random_data, split_data, remove_split_columns
+from utils import get_data_fps, get_random_data, split_data, remove_split_columns, get_instance
 from utils import perform_feature_importance_analysis, perform_correlation_analysis
-from utils import tune_model, run_random_forest_experiment
-
-label_area_path = 'retrieval/results/splitted/preprocessed/vivado_LabelSelect_area_attrs_cleaned.csv'
-conv_area_path = 'retrieval/results/splitted/preprocessed/vivado_ConvolutionInputGenerator_area_attrs_cleaned.csv'
-padding_area_path = 'retrieval/results/splitted/preprocessed/vivado_FMPadding_area_attrs_cleaned.csv'
-mvau_area_path = 'retrieval/results/splitted/preprocessed/vivado_MVAU_area_attrs_cleaned.csv'
-data_w_area_path = 'retrieval/results/splitted/preprocessed/vivado_StreamingDataWidthConverter_area_attrs_cleaned.csv'
-fifo_area_path = 'retrieval/results/splitted/preprocessed/vivado_StreamingFIFO_area_attrs_cleaned.csv'
+from utils import tune_model, evaluate_model
 
 DATASET_PATHS = {
     'label_select': 'retrieval/results/splitted/preprocessed/vivado_LabelSelect_area_attrs_cleaned.csv',
@@ -36,7 +29,7 @@ def main():
     parser.add_argument('--tuning', action='store_true', help='Tuning model or not', default=True)
     parser.add_argument('--importance', action='store_true', help='Feature importance or not', default=True)
     parser.add_argument('--correlation', action='store_true', help='Correlation analysis or not', default=True)
-    parser.add_argument('--interpret', action='store_true', help='Interpretation or not')
+    parser.add_argument('--interpret', action='store_true', help='Interpretation or not', default=True)
 
     args = parser.parse_args()
 
@@ -50,6 +43,7 @@ def main():
         args.target = ['Total LUTs']
     if(args.target == 'all'):
         args.target = ['Total LUT','Total FFs','BRAM (36k eq.)','DSP Blocks']
+        # args.target = ['Total LUT','Total FFs','DSP Blocks']
 
     X_train, y_train = split_data(train, args.target)
     X_test, y_test = split_data(test, args.target)
@@ -77,7 +71,8 @@ def main():
         model = tune_model(X_train, y_train, model_type=args.model)
     
     if args.model == 'random_forest':
-        run_random_forest_experiment(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, output_path=output_directory)
+        print("Evaluating Random Forest model...")
+        evaluate_model(model, X_test=X_test, y_test=y_test, output_path=output_directory)
 
     elif args.model == 'xgboost':
         print("Training XGBoost model...")
@@ -85,21 +80,6 @@ def main():
 
     elif args.model == 'neural_network':
         print("Training neural network model...")
-        
-
-
-
-    # if (args.interpret):
-    #     if(args.model == 'random_forest')
-    #         xmtr_interpreter = MTR(model, X_train, X_test, y_train, y_test, X_train.columns, y_train.columns)
-    #         instance = get_instance(X_test)
-    #         print("Prediction and interpretation rule:", xmtr_interpreter.explain(instance, 1)) 
-    #     else:
-    #         raise ValueError("Currently only random forest model is supported for interpretation.")
-
     
-
-    
-
 if __name__ == "__main__":
     main()

@@ -44,6 +44,7 @@ class MTR:
 
     if model is not None:
       self.model = model
+      print("model is set")
     else:
       # add gridsearch
       parameters = [{

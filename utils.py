@@ -65,6 +65,7 @@ def get_random_data(path: str):
     data = remove_columns(data, ['Hardware config', 'Submodule Instance', 'op_type'])
 
     train_data = data.sample(frac=0.8, random_state=42)
+    # train_data = data.sample(frac=0.8)
     test_data = data.drop(train_data.index)
 
     return train_data, test_data
@@ -251,7 +252,22 @@ def perform_feature_importance_analysis(X_train, y_train, model_type, output_pat
         for estimator in multioutput_model.estimators_:
             calculated_importances += estimator.feature_importances_
         cumulative_importances = calculated_importances
-        # ... (your existing plotting loops)
+        
+        for i, target_name in enumerate(y_train.columns):
+            individual_estimator = multioutput_model.estimators_[i]
+            importances = individual_estimator.feature_importances_
+            
+            # Print top features to console
+            print(f"\nTop 5 Features for Target: {target_name}")
+            sorted_indices = np.argsort(importances)[::-1]
+            for j in range(min(5, len(X_train.columns))):
+                feature = X_train.columns[sorted_indices[j]]
+                score = importances[sorted_indices[j]]
+                print(f"  {j+1}. {feature}: {score:.4f}")
+            
+            # Create and save plot
+            plot_individual_feature_importance(importances, X_train.columns.tolist(), target_name, output_path)
+            print(f"Individual plot saved for '{target_name}'")
     
     else:
         print("Warning: y_train is in an unrecognized format for feature importance analysis.")
@@ -422,7 +438,7 @@ def tune_model(X_train, y_train, model_type):
     
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
-def run_random_forest_experiment(X_train, y_train, X_test, y_test, output_path):
+def evaluate_model(model, X_test, y_test, output_path):
     """
     Trains a multi-output Random Forest model, evaluates it on the test set,
     and saves predictions, metrics, and diagnostic plots.
@@ -434,20 +450,17 @@ def run_random_forest_experiment(X_train, y_train, X_test, y_test, output_path):
         y_test (pd.DataFrame): Testing targets.
         output_path (str): Path to the directory where results will be saved.
     """
-    print("🚀 Starting Random Forest experiment...")
     
     # --- 1. Train the Model ---
     # Use MultiOutputRegressor to handle multiple target variables
-    print("Training the model...")
-    base_rf = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
-    model = MultiOutputRegressor(base_rf)
-    model.fit(X_train, y_train)
+    # print("Training the model...")
+    # base_rf = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+    # model = MultiOutputRegressor(base_rf)
+    # model.fit(X_train, y_train)
 
     # --- 2. Make Predictions on the Test Set ---
     print("Generating predictions...")
     y_pred = model.predict(X_test)
-    
-    # Convert predictions array to a DataFrame for easier handling
     y_pred_df = pd.DataFrame(y_pred, columns=y_test.columns, index=y_test.index)
 
     # --- 3. Save Predictions ---
@@ -484,14 +497,12 @@ def run_random_forest_experiment(X_train, y_train, X_test, y_test, output_path):
     # --- 5. Generate and Save Plots for Each Target ---
     print("Generating and saving plots...")
 
-    # Define and create subdirectories for the plots
     predictions_plot_path = os.path.join(output_path, 'predictions_plots')
     residuals_plot_path = os.path.join(output_path, 'residuals_plots')
     os.makedirs(predictions_plot_path, exist_ok=True)
     os.makedirs(residuals_plot_path, exist_ok=True)
 
     for target in y_test.columns:
-        # Sanitize target name for filenames
         safe_target_name = "".join(c for c in target if c.isalnum() or c in (' ', '_')).rstrip().replace(' ', '_')
 
         # a) Prediction vs. Actual Plot
@@ -505,7 +516,6 @@ def run_random_forest_experiment(X_train, y_train, X_test, y_test, output_path):
         plt.grid(True)
         plt.tight_layout()
 
-        # Save the plot in the 'predictions_plots' subfolder
         prediction_filename = f'plot_prediction_vs_actual_{safe_target_name}.png'
         plt.savefig(os.path.join(predictions_plot_path, prediction_filename))
         plt.close()
@@ -521,7 +531,6 @@ def run_random_forest_experiment(X_train, y_train, X_test, y_test, output_path):
         plt.grid(True)
         plt.tight_layout()
 
-        # Save the plot in the 'residuals_plots' subfolder
         residual_filename = f'plot_residuals_{safe_target_name}.png'
         plt.savefig(os.path.join(residuals_plot_path, residual_filename))
         plt.close()
