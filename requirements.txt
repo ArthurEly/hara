@@ -13,7 +13,9 @@ h5py==3.13.0
 idna==3.10
 joblib==1.4.2
 keras==3.9.2
+keras-tuner==1.4.7
 kiwisolver==1.4.8
+kt-legacy==1.0.5
 libclang==18.1.1
 Markdown==3.8
 markdown-it-py==3.0.0

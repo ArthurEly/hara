@@ -2,11 +2,15 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
 import os
 from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import GridSearchCV
+from tensorflow import keras
+from tensorflow.keras import layers
+import keras_tuner as kt
 
 def get_data_t1t2(path: str):
     """
@@ -371,7 +375,34 @@ def perform_correlation_analysis(X_train, y_train, output_path, feature_importan
     # --- CHANGED: Return the list of features to remove ---
     return sorted(list(features_to_remove))
 
+def build_model(X_train, y_train, hp):
+    model = keras.Sequential()
+    # Input layer shape
+    model.add(layers.Input(shape=(X_train.shape[1],)))
 
+    # Tune the number of hidden layers and units per layer
+    for i in range(hp.Int('num_layers', 1, 3)):
+        model.add(layers.Dense(
+            units=hp.Int(f'units_{i}', min_value=32, max_value=256, step=32),
+            activation=hp.Choice('activation', ['relu', 'tanh'])
+        ))
+        # Tune whether to use dropout
+        if hp.Boolean('dropout'):
+            model.add(layers.Dropout(rate=0.25))
+
+    # Add the final output layer
+    # The number of units must match the number of target variables
+    model.add(layers.Dense(y_train.shape[1], activation='linear'))
+
+    # Tune the learning rate for the optimizer
+    learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
+    
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+        loss='mean_squared_error',
+        metrics=['mean_absolute_error']
+    )
+    return model
 
 def tune_model(X_train, y_train, model_type):
     """
@@ -458,9 +489,70 @@ def tune_model(X_train, y_train, model_type):
         return grid_search.best_estimator_
 
     elif model_type == 'neural_network':
-        print(f"Tuning for {model_type} is not yet implemented.")
-        # Placeholder for Neural Network tuning. 
-        return None
+        print(f"Tuning Neural Network model...")
+        def build_model(hp):
+            model = keras.Sequential()
+            model.add(layers.Input(shape=(X_train.shape[1],)))
+
+            for i in range(hp.Int('num_layers', 1, 3)):
+                model.add(layers.Dense(
+                    units=hp.Int(f'units_{i}', min_value=32, max_value=256, step=32),
+                    activation=hp.Choice('activation', ['relu', 'tanh'])
+                ))
+                if hp.Boolean('dropout'):
+                    model.add(layers.Dropout(rate=0.25))
+
+            # Output layer's units must match the number of targets
+            model.add(layers.Dense(y_train.shape[1], activation='linear'))
+
+            learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
+
+            model.compile(
+                optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+                loss='mean_squared_error',
+                metrics=['mean_absolute_error']
+            )
+            return model
+
+        # 2. Set up the KerasTuner, passing the name of the build function
+        tuner = kt.Hyperband(
+            build_model,  # <-- Pass the function itself, don't call it
+            objective='val_mean_absolute_error',
+            max_epochs=50,
+            factor=3,
+            directory='keras_tuner_dir',
+            project_name=f'tune_nn_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}'
+        )
+
+        # 3. Run the hyperparameter search
+        early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5)
+        print("Starting hyperparameter search...")
+        tuner.search(
+            X_train, y_train,
+            epochs=50,
+            validation_split=0.2,
+            callbacks=[early_stopping],
+            verbose=2
+        )
+
+        # 4. Get the optimal hyperparameters and train the final model
+        best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+        
+        print("\nTuning complete!")
+        print(f"Best number of layers: {best_hps.get('num_layers')}")
+        print(f"Best learning rate: {best_hps.get('learning_rate')}")
+        
+        print("\nTraining final model with the best hyperparameters...")
+        final_model = tuner.hypermodel.build(best_hps)
+        final_model.fit(
+            X_train, y_train,
+            epochs=100,
+            validation_split=0.2,
+            callbacks=[early_stopping],
+            verbose=0
+        )
+        print("Final model trained.")
+        return final_model
 
     else:
         print(f"Unknown model type '{model_type}' for tuning.")
@@ -468,7 +560,7 @@ def tune_model(X_train, y_train, model_type):
     
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
-def evaluate_model(model, X_test, y_test, output_path):
+def evaluate_model(model, X_test, y_test, output_path, y_scaler):
     """
     Trains a multi-output Random Forest model, evaluates it on the test set,
     and saves predictions, metrics, and diagnostic plots.
@@ -491,6 +583,10 @@ def evaluate_model(model, X_test, y_test, output_path):
     # --- 2. Make Predictions on the Test Set ---
     print("Generating predictions...")
     y_pred = model.predict(X_test)
+
+    if y_scaler is not None:
+        y_pred = y_scaler.inverse_transform(y_pred)
+
     y_pred_df = pd.DataFrame(y_pred, columns=y_test.columns, index=y_test.index)
 
     # --- 3. Save Predictions ---

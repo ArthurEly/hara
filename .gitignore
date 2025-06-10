@@ -10,3 +10,4 @@ last_run
 test.py
 test.py
 *.pdf
+keras_tuner_dir/

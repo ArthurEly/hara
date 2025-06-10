@@ -1,11 +1,16 @@
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+import warnings
 
 import argparse
+from sklearn.preprocessing import StandardScaler
 from xmtr import *
 from utils import get_data_fps, get_random_data, split_data, remove_split_columns, get_instance
 from utils import perform_feature_importance_analysis, perform_correlation_analysis
 from utils import tune_model, evaluate_model
+
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 DATASET_PATHS = {
     'label_select': 'retrieval/results/splitted/preprocessed/vivado_LabelSelect_area_attrs_cleaned.csv',
@@ -21,7 +26,7 @@ def main():
     
     parser.add_argument('--input', type=str, help='Name of the dataset to use.',default='mvau', choices=DATASET_PATHS.keys())
     parser.add_argument('--output', type=str, help='Output CSV file path', default='results/')
-    parser.add_argument('--model', type=str, help='Model type', default='xgboost', choices=['xgboost', 'random_forest', 'neural_network'])
+    parser.add_argument('--model', type=str, help='Model type', default='neural_network', choices=['xgboost', 'random_forest', 'neural_network'])
     parser.add_argument('--split', type=str, help='Split type', default='random')
     parser.add_argument('--target', type=str, help='Target variable', default='all')
     parser.add_argument('--plot', type=str, help='Plot type', default='corr')
@@ -65,23 +70,20 @@ def main():
         y_train, y_test = remove_split_columns(y_train, y_test, correlated_features_to_remove)
         print(f"Removed {len(correlated_features_to_remove)} features based on correlation and importance.")
 
+    if args.model == 'neural_network':
+        print("Scaling data for neural network...")
+        x_scaler = StandardScaler()
+        X_train = x_scaler.fit_transform(X_train)
+        X_test = x_scaler.transform(X_test)
+        y_scaler = StandardScaler()
+        y_train = y_scaler.fit_transform(y_train)
+    
     if args.tuning:
         print("Tuning model...")
         model = tune_model(X_train, y_train, model_type=args.model)
     
     print(f"Evaluating {args.model} model...")
-    evaluate_model(model, X_test=X_test, y_test=y_test, output_path=output_directory)
-    
-    # if args.model == 'random_forest':
-    #     print("Evaluating Random Forest model...")
-    #     evaluate_model(model, X_test=X_test, y_test=y_test, output_path=output_directory)
-
-    # elif args.model == 'xgboost':
-    #     print("Training XGBoost model...")
-    #     # model = train_xgboost(X_train, y_train)
-
-    # elif args.model == 'neural_network':
-    #     print("Training neural network model...")
+    evaluate_model(model, X_test=X_test, y_test=y_test, output_path=output_directory, y_scaler=y_scaler if args.model == 'neural_network' else None)
     
 if __name__ == "__main__":
     main()
