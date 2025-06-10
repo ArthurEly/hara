@@ -21,7 +21,7 @@ def main():
     
     parser.add_argument('--input', type=str, help='Name of the dataset to use.',default='mvau', choices=DATASET_PATHS.keys())
     parser.add_argument('--output', type=str, help='Output CSV file path', default='results/')
-    parser.add_argument('--model', type=str, help='Model type', default='random_forest')
+    parser.add_argument('--model', type=str, help='Model type', default='xgboost', choices=['xgboost', 'random_forest', 'neural_network'])
     parser.add_argument('--split', type=str, help='Split type', default='random')
     parser.add_argument('--target', type=str, help='Target variable', default='all')
     parser.add_argument('--plot', type=str, help='Plot type', default='corr')
@@ -49,10 +49,9 @@ def main():
     X_test, y_test = split_data(test, args.target)
 
     if args.importance:
-
         importance_output_path = os.path.join(output_directory, 'feature_importance')
         os.makedirs(importance_output_path, exist_ok=True)
-        unimportant_features, all_feature_importances = perform_feature_importance_analysis(X_train=X_train, y_train=y_train, model_type=args.model, 
+        unimportant_features, all_feature_importances = perform_feature_importance_analysis(X_train=X_train, y_train=y_train, 
                                                                                             output_path=importance_output_path, importance_threshold=0.015)
         X_train, X_test = remove_split_columns(X_train, X_test, unimportant_features)
         y_train, y_test = remove_split_columns(y_train, y_test, unimportant_features)
@@ -70,16 +69,19 @@ def main():
         print("Tuning model...")
         model = tune_model(X_train, y_train, model_type=args.model)
     
-    if args.model == 'random_forest':
-        print("Evaluating Random Forest model...")
-        evaluate_model(model, X_test=X_test, y_test=y_test, output_path=output_directory)
+    print(f"Evaluating {args.model} model...")
+    evaluate_model(model, X_test=X_test, y_test=y_test, output_path=output_directory)
+    
+    # if args.model == 'random_forest':
+    #     print("Evaluating Random Forest model...")
+    #     evaluate_model(model, X_test=X_test, y_test=y_test, output_path=output_directory)
 
-    elif args.model == 'xgboost':
-        print("Training XGBoost model...")
-        # model = train_xgboost(X_train, y_train)
+    # elif args.model == 'xgboost':
+    #     print("Training XGBoost model...")
+    #     # model = train_xgboost(X_train, y_train)
 
-    elif args.model == 'neural_network':
-        print("Training neural network model...")
+    # elif args.model == 'neural_network':
+    #     print("Training neural network model...")
     
 if __name__ == "__main__":
     main()

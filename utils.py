@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import GridSearchCV
 
@@ -212,17 +213,13 @@ def get_instance(X_test):
     print(f"Selected random instance index: {random_index}")
     return X_test.loc[random_index]
 
-def perform_feature_importance_analysis(X_train, y_train, model_type, output_path, importance_threshold=0.015):
+def perform_feature_importance_analysis(X_train, y_train, output_path, importance_threshold=0.015):
     """
     Performs feature importance analysis.
 
     Returns:
         tuple: (list_of_unimportant_features, series_of_all_importances)
     """
-    # ... (function logic is the same until the end)
-    if model_type != 'random_forest':
-        print(f"Feature importance is not implemented for model type: {model_type}")
-        return [], pd.Series() # <--- Return empty list and empty Series
 
     print("Calculating feature importances using Random Forest...")
     rf_model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
@@ -252,6 +249,8 @@ def perform_feature_importance_analysis(X_train, y_train, model_type, output_pat
         for estimator in multioutput_model.estimators_:
             calculated_importances += estimator.feature_importances_
         cumulative_importances = calculated_importances
+
+        plot_cumulative_feature_importance(multioutput_model, X_train.columns.tolist(), output_path)
         
         for i, target_name in enumerate(y_train.columns):
             individual_estimator = multioutput_model.estimators_[i]
@@ -387,7 +386,7 @@ def tune_model(X_train, y_train, model_type):
         model: The best-tuned model found by GridSearchCV.
     """
     if model_type == 'random_forest':
-        print(f"🚀 Tuning Random Forest model...")
+        print(f"Tuning Random Forest model...")
 
         # 1. Define the base model and the multi-output wrapper
         rf = RandomForestRegressor(random_state=42)
@@ -423,9 +422,40 @@ def tune_model(X_train, y_train, model_type):
         return grid_search.best_estimator_
 
     elif model_type == 'xgboost':
-        print(f"Tuning for {model_type} is not yet implemented.")
-        # Placeholder for XGBoost tuning logic. 
-        return None
+        print(f"Tuning XGBoost model...")
+
+        # 1. Define the base XGBoost model and the multi-output wrapper
+        xgb = XGBRegressor(random_state=42)
+        multi_output_xgb = MultiOutputRegressor(xgb)
+
+        # 2. Define the hyperparameter grid for XGBoost
+        param_grid = {
+            'estimator__n_estimators': [100, 200, 300],    # Number of boosting rounds
+            'estimator__max_depth': [3, 5, 7],             # Max depth of trees
+            'estimator__learning_rate': [0.05, 0.1, 0.2],  # Step size shrinkage
+            'estimator__subsample': [0.8, 1.0],            # Fraction of samples for training each tree
+            'estimator__colsample_bytree': [0.8, 1.0]      # Fraction of features for training each tree
+        }
+
+        # 3. Set up GridSearchCV
+        grid_search = GridSearchCV(
+            estimator=multi_output_xgb,
+            param_grid=param_grid,
+            cv=5,
+            scoring='neg_mean_squared_error',
+            n_jobs=-1,
+            verbose=2
+        )
+
+        # 4. Run the tuning process
+        grid_search.fit(X_train, y_train)
+
+        # 5. Print the results and return the best model
+        print("\nTuning complete!")
+        print(f"Best parameters found: {grid_search.best_params_}")
+        print(f"Best cross-validation score (Negative MSE): {grid_search.best_score_:.4f}")
+        
+        return grid_search.best_estimator_
 
     elif model_type == 'neural_network':
         print(f"Tuning for {model_type} is not yet implemented.")
