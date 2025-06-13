@@ -3,7 +3,7 @@ INPUTS=("label_select" "convolution" "padding" "mvau" "data_width_converter" "fi
 
 for model in "${MODELS[@]}"; do
     for input in "${INPUTS[@]}"; do
-        echo "Running model=$model on input=$input"
+        echo "Running model=$model on dataset=$input"
         python3 main.py --model "$model" --input "$input"
     done
 done
