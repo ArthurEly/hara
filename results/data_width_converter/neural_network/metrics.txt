@@ -1,0 +1,14 @@
+--- Regression Metrics ---
+
+Metrics for target: 'Total LUT'
+  R-squared (R²): 0.7806
+  Mean Squared Error (MSE): 11554.9170
+  Mean Absolute Error (MAE): 21.6227
+
+Metrics for target: 'Total FFs'
+  R-squared (R²): 0.6731
+  Mean Squared Error (MSE): 123829.8750
+  Mean Absolute Error (MAE): 127.8261
+
+--- Average Metrics Across All Targets ---
+  Average R-squared (R²): 0.7268
