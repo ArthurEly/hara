@@ -1,7 +1,7 @@
-OriginalFile,original_columns,removed_constant,removed_high_corr,removed_missing,final_columns
-vivado_FMPadding_area_attrs,41,20,0,0,21
-vivado_StreamingDataWidthConverter_area_attrs,41,22,1,0,18
-vivado_ConvolutionInputGenerator_area_attrs,41,18,1,0,22
-vivado_StreamingFIFO_area_attrs,41,23,0,0,18
-vivado_MVAU_area_attrs,41,15,1,0,25
-vivado_LabelSelect_area_attrs,41,25,2,0,14
+OriginalFile,original_columns,removed_constant,removed_high_corr,removed_missing,categorical_encoded,final_columns
+vivado_FMPadding_area_attrs,41,20,0,0,3,18
+vivado_StreamingDataWidthConverter_area_attrs,41,22,1,0,4,14
+vivado_ConvolutionInputGenerator_area_attrs,41,18,1,0,2,20
+vivado_StreamingFIFO_area_attrs,41,23,0,0,4,14
+vivado_MVAU_area_attrs,41,14,1,0,2,28
+vivado_LabelSelect_area_attrs,41,25,2,0,2,12
