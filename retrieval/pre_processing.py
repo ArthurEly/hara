@@ -40,7 +40,7 @@ def extract_bitwidth(x):
 
 # Constantes de configuração
 area_cols_to_preserve = [
-    "Total LUTs", "LUTRAMs", "Logic LUTs", "FFs", "RAMB36", "RAMB18", "DSP Blocks",
+    "Total LUT", "Total FFs", "BRAM (36k eq.)", "DSP Blocks",
     "ConvKernelDim", "Dilation", "Stride", "SRLs", "inWidth", "Padding", "K",
     "Labels", "PE", "inFIFODepths", "outFIFODepths", "numInputVectors",
 ]
