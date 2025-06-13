@@ -24,9 +24,9 @@ DATASET_PATHS = {
 def main():
     parser = argparse.ArgumentParser(description='HARA')
     
-    parser.add_argument('--input', type=str, help='Name of the dataset to use.',default='mvau', choices=DATASET_PATHS.keys())
+    parser.add_argument('--input', type=str, help='Name of the dataset to use.',default='data_width_converter', choices=DATASET_PATHS.keys())
     parser.add_argument('--output', type=str, help='Output CSV file path', default='results/')
-    parser.add_argument('--model', type=str, help='Model type', default='neural_network', choices=['xgboost', 'random_forest', 'neural_network'])
+    parser.add_argument('--model', type=str, help='Model type', default='xgboost', choices=['xgboost', 'random_forest', 'neural_network'])
     parser.add_argument('--split', type=str, help='Split type', default='random')
     parser.add_argument('--target', type=str, help='Target variable', default='all')
     parser.add_argument('--plot', type=str, help='Plot type', default='corr')
@@ -46,9 +46,16 @@ def main():
 
     if(args.target == 'luts'):
         args.target = ['Total LUTs']
-    if(args.target == 'all'):
-        args.target = ['Total LUT','Total FFs','BRAM (36k eq.)','DSP Blocks']
-        # args.target = ['Total LUT','Total FFs','DSP Blocks']
+    
+    targets_map = {
+        'label_select': ['Total LUT', 'Total FFs'],
+        'convolution': ['Total LUT', 'Total FFs'],
+        'padding': ['Total LUT', 'Total FFs'],
+        'mvau': ['Total LUT', 'Total FFs', 'BRAM (36k eq.)', 'DSP Blocks'],
+        'data_width_converter': ['Total LUT', 'Total FFs'],
+        'fifo': ['Total LUT', 'Total FFs']
+    }
+    args.target = targets_map.get(args.input)
 
     X_train, y_train = split_data(train, args.target)
     X_test, y_test = split_data(test, args.target)
