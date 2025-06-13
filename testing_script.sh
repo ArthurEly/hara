@@ -1,7 +1,9 @@
-# fps run
+MODELS=("neural_network" "xgboost" "random_forest")
+INPUTS=("label_select" "convolution" "padding" "mvau" "data_width_converter" "fifo")
 
-python3 main.py --split 500fps
-python3 main.py --split 5000fps
-python3 main.py --split 50000fps
-
-python3 main.py --split random 
+for model in "${MODELS[@]}"; do
+    for input in "${INPUTS[@]}"; do
+        echo "Running model=$model on input=$input"
+        python3 main.py --model "$model" --input "$input"
+    done
+done
