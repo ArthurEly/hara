@@ -61,9 +61,10 @@ def main():
     X_test, y_test = split_data(test, args.target)
 
     if args.importance:
+        
         importance_output_path = os.path.join(output_directory, 'feature_importance')
         os.makedirs(importance_output_path, exist_ok=True)
-        unimportant_features, all_feature_importances = perform_feature_importance_analysis(X_train=X_train, y_train=y_train, 
+        unimportant_features, all_feature_importances = perform_feature_importance_analysis(X_train=X_train, y_train=y_train, model_type="random_forest",
                                                                                             output_path=importance_output_path, importance_threshold=0.015)
         X_train, X_test = remove_split_columns(X_train, X_test, unimportant_features)
         y_train, y_test = remove_split_columns(y_train, y_test, unimportant_features)
