@@ -163,6 +163,36 @@ def plot_xgboost_native_importance(xgb_model, target_name, output_path):
         plt.savefig(os.path.join(output_path, plot_filename))
         plt.close(fig)
 
+def plot_cumulative_xgboost_importance(cumulative_scores, importance_type, output_path):
+    """
+    Plots cumulative feature importance for XGBoost from a score dictionary.
+
+    Args:
+        cumulative_scores (dict): A dictionary of {feature_name: score}.
+        importance_type (str): The type of importance ('gain', 'weight', 'cover') for titles.
+        output_path (str): Directory to save the plot.
+    """
+    if not cumulative_scores:
+        print(f"No importance scores to plot for type: {importance_type}")
+        return
+
+    # Convert the dictionary to a pandas Series for easy sorting and plotting
+    importance_series = pd.Series(cumulative_scores).sort_values(ascending=False)
+
+    plt.figure(figsize=(12, 8))
+    sns.barplot(x=importance_series.values, y=importance_series.index)
+    
+    plt.title(f'Cumulative XGBoost Feature Importance ({importance_type.capitalize()})', fontsize=16)
+    plt.xlabel('Cumulative Importance Score')
+    plt.ylabel('Feature')
+    plt.tight_layout()
+    
+    filename = f'cumulative_xgb_importance_{importance_type}.png'
+    plt.savefig(os.path.join(output_path, filename))
+    plt.close()
+    print(f"  - Generated cumulative XGBoost plot for type: '{importance_type}'")
+
+
 def plot_individual_feature_importance(importances, feature_names, target_name, output_path):
     """
     Plots feature importances for a single target, scaled from 0 to 100.
@@ -245,71 +275,86 @@ def get_instance(X_test):
     print(f"Selected random instance index: {random_index}")
     return X_test.loc[random_index]
 
+from collections import Counter
+
 def perform_feature_importance_analysis(X_train, y_train, model_type, output_path, importance_threshold=0.015):
     """
     Performs feature importance analysis for Random Forest or XGBoost.
-    - For RF, it plots standard feature importance.
-    - For XGB, it uses the native plot_importance for 'weight', 'gain', and 'cover'.
+    - For RF, it plots standard individual and cumulative importance.
+    - For XGB, it plots native individual plots AND cumulative plots for all 3 importance types.
     
     Returns:
         tuple: (list_of_unimportant_features, series_of_all_importances)
     """
-    cumulative_importances = None
-    
-    # --- MODEL SELECTION BLOCK ---
+    # --- MODEL SELECTION AND TRAINING ---
     if model_type == 'random_forest':
-        print(f"\nCalculating feature importances using Random Forest...")
+        print(f"\n🚀 Calculating feature importances using Random Forest...")
         base_model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
     elif model_type == 'xgboost':
-        print(f"\nCalculating feature importances using XGBoost...")
+        print(f"\n🚀 Calculating feature importances using XGBoost...")
         base_model = XGBRegressor(n_estimators=100, random_state=42, n_jobs=-1)
     else:
         print(f"Feature importance is not implemented for model type: '{model_type}'")
         return [], pd.Series()
-    # --- END MODEL SELECTION ---
-    
-    # This part remains the same: wrap in MultiOutputRegressor and train
+
     multioutput_model = MultiOutputRegressor(base_model)
     multioutput_model.fit(X_train, y_train)
 
-    # --- CUMULATIVE IMPORTANCE CALCULATION (for feature removal) ---
-    # This logic works for both RF and XGB scikit-learn wrappers
-    num_features = X_train.shape[1]
-    calculated_importances = np.zeros(num_features)
-    for estimator in multioutput_model.estimators_:
-        calculated_importances += estimator.feature_importances_
-    cumulative_importances = calculated_importances
-
-    # --- PLOTTING BLOCK ---
+    # --- PLOTTING AND CUMULATIVE CALCULATION ---
     print("Generating feature importance plots...")
-    if isinstance(y_train, pd.DataFrame) and y_train.shape[1] > 1: # Multi-target case
+    
+    if model_type == 'random_forest':
+        # Plot individual importances for each target
+        for i, target_name in enumerate(y_train.columns):
+            importances = multioutput_model.estimators_[i].feature_importances_
+            plot_individual_feature_importance(importances, X_train.columns.tolist(), target_name, output_path)
+            print(f"  - Generated RF importance plot for '{target_name}'")
+        
+        # Plot one cumulative importance plot
+        print("\nGenerating cumulative RF importance plot...")
+        plot_cumulative_feature_importance(multioutput_model, X_train.columns.tolist(), output_path)
+
+    elif model_type == 'xgboost':
+        # Initialize dictionaries to hold cumulative scores for each type
+        cumulative_scores = {'gain': Counter(), 'weight': Counter(), 'cover': Counter()}
+
+        # Plot individual importances and gather cumulative scores
         for i, target_name in enumerate(y_train.columns):
             individual_estimator = multioutput_model.estimators_[i]
+            plot_xgboost_native_importance(individual_estimator, target_name, output_path)
             
-            if model_type == 'random_forest':
-                importances = individual_estimator.feature_importances_
-                plot_individual_feature_importance(importances, X_train.columns.tolist(), target_name, output_path)
-                print(f"  - Generated RF importance plot for '{target_name}'")
+            # Aggregate scores for each importance type
+            for imp_type in cumulative_scores.keys():
+                # get_booster() provides access to the core XGBoost model
+                scores = individual_estimator.get_booster().get_score(importance_type=imp_type)
+                cumulative_scores[imp_type].update(scores)
 
-            elif model_type == 'xgboost':
-                # Call our new helper to generate all 3 native plot types
-                plot_xgboost_native_importance(individual_estimator, target_name, output_path)
-                print(f"  - Generated native XGBoost importance plots (gain, weight, cover) for '{target_name}'")
-    else:
-        # Handle single-target case if necessary (code would be similar)
-        print("Plotting for single target...")
+        # Plot the cumulative importance for each type
+        print("\nGenerating cumulative XGBoost importance plots...")
+        for imp_type, scores_dict in cumulative_scores.items():
+            plot_cumulative_xgboost_importance(dict(scores_dict), imp_type, output_path)
+            
+    # --- RETURN UNIMPORTANT FEATURES ---
+    # This logic uses the default '.feature_importances_' (gain for XGB) for consistency
+    num_features = X_train.shape[1]
+    final_cumulative_importances = np.zeros(num_features)
+    for estimator in multioutput_model.estimators_:
+        final_cumulative_importances += estimator.feature_importances_
 
-    # --- RETURN UNIMPORTANT FEATURES (logic is unchanged) ---
     unimportant_features_list = []
     feature_imp_series = pd.Series()
-    if cumulative_importances is not None:
-        normalized_importances = cumulative_importances / np.sum(cumulative_importances)
+    if final_cumulative_importances.any(): # Check if not all zeros
+        normalized_importances = final_cumulative_importances / np.sum(final_cumulative_importances)
         feature_imp_series = pd.Series(normalized_importances, index=X_train.columns)
         unimportant_features = feature_imp_series[feature_imp_series < importance_threshold]
         if not unimportant_features.empty:
-            # ... (print logic remains the same)
+            print(f"\n--- Features below {importance_threshold:.2%} normalized importance threshold (based on 'gain') ---")
+            for feature, score in unimportant_features.items():
+                print(f"- {feature} (Importance: {score:.2%})")
             unimportant_features_list = unimportant_features.index.tolist()
-    
+        else:
+             print(f"\nNo features found below the {importance_threshold:.2%} importance threshold.")
+             
     return unimportant_features_list, feature_imp_series
     
 def perform_correlation_analysis(X_train, y_train, output_path, feature_importances, threshold=0.9):
