@@ -9,7 +9,7 @@ parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
 sys.path.insert(0, parent_dir)
 
 # agora sim você pode importar
-from hw_utils import utils
+from hw.hw_utils import utils
 import json
 
 def test_modify_folding():

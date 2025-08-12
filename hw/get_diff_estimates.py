@@ -2,7 +2,7 @@ import os
 import json
 import matplotlib.pyplot as plt
 import numpy as np
-from hw_utils import utils
+from hw.hw_utils import utils
 import re
 
 def natural_sort_key(s):

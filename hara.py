@@ -6,12 +6,12 @@ import json
 import time
 import threading
 from cnns_classes import t1_quantizedCNN, t2_quantizedCNN
-from hw_utils import utils
+from hw.hw_utils import utils
 from datetime import datetime
 
 # Crie um diretório base único para esta execução
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-build_dir = f"/home/arthurely/Desktop/finn/hara/builds/run_{timestamp}"
+build_dir = f"/home/arthurely/Desktop/finn/hara/hw/builds/run_{timestamp}"
 os.makedirs(build_dir, exist_ok=True)
 
 # Se quiser, salve esse caminho num lugar (ex: symlink "last_run")
@@ -250,7 +250,6 @@ for tp in topologies:
                 
                 print(f"[X] First run crashed for {first_hw_name}")
                 utils.save_crash_report(f"{build_dir}/{first_hw_name}")
-                #utils.append_run_summary(summary_file, first_hw_name, "crash", folding)
                 utils.append_run_summary(
                     file_path=summary_file,
                     hw_name=first_hw_name,
@@ -351,41 +350,9 @@ for tp in topologies:
                     if consecutive_errors > 0:
                         if flags["bram_exceed"] and (not flags["lut_exceed"]) and (not flags["ff_exceed"]) and (not flags["dsp_exceed"]):
                             folding_hara = modify_func(folding_input, onnx_path, estimate_layer_cycles)
-                            #args = [
-                            #    "python3", "run_build.py",
-                            #    "--build_dir", str(build_dir),
-                            #    "--topology", str(tp['id']),
-                            #    "--target_fps", str(config['check']['target_fps']),
-                            #    "--quant", str(quant),
-                            #    "--steps", json.dumps(config['check']['steps']),
-                            #    "--folding_file", folding_path_hara,
-                            #    "--run", str(run),
-                            #    "--hw_name", hw_name_hara,
-                            #]
-                            #
-                            #for _ in range(consecutive_errors):                        
-                            #    utils.run_and_capture(args, log_path=f"{build_dir}/build_{hw_name_hara}.log")
-                            #    estimate_layer_cycles_path = f"{build_dir}/{hw_name_hara}/report/estimate_layer_cycles.json"
-                            #    with open(estimate_layer_cycles_path, 'r') as f:
-                            #            estimate_layer_cycles = json.load(f)                        
-                            #    folding_hara = utils.modify_folding(folding_hara, onnx_path, estimate_layer_cycles)
                         else:                  
-                            #print(f"[!] Recursos excedidos no try_alternate_foldings: {flags}")
-                            #folding_hara, hw_name_hara = try_alternate_foldings(
-                            #    folding_input, onnx_path, estimate_layer_cycles,
-                            #    base_args=args, build_dir=build_dir, run=run,
-                            #    summary_file=summary_file, resource_limits=RESOURCE_LIMITS
-                            #)
-                            #if folding_hara is None and hw_name_hara is None:
                             print("[✗] Nenhum folding alternativo válido encontrado. Encerrando.")
                             break
-                            # last_valid_folding = folding_hara
-                            # last_valid_hw_name = hw_name_hara
-                            # prev_folding = folding_hara
-                            # consecutive_errors = 0
-                            # run += 1
-                            # print(f"Partindo pra próxima rodada...")
-                            # continue
                     else:
                         # gera três estratégias de folding
                         strategies = [
