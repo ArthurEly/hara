@@ -14,7 +14,7 @@ import math
 def show(name: str = 'output.pdf') -> None:
     backend = matplotlib.get_backend().lower()
     if 'agg' in backend or 'pdf' in backend or 'svg' in backend:
-        plt.savefig(name, format='pdf')
+        plt.savefig(name, format='png')
     else:
         plt.show()
 
@@ -243,7 +243,7 @@ def main() -> None:
         y_label='Total LUTs',
         legend_names=legend_names,
         limit_bar_color=limit_bar_color,
-        file_name='fpgas_luts.pdf',
+        file_name='fpgas_luts.png',
         show_legend=True        
     )
 
@@ -263,7 +263,7 @@ def main() -> None:
         y_label='Total FFs',
         legend_names=legend_names,
         limit_bar_color=limit_bar_color,
-        file_name='fpgas_ffs.pdf',
+        file_name='fpgas_ffs.png',
         show_legend=True
     )
 
@@ -283,7 +283,7 @@ def main() -> None:
         y_label='Total BRAMs',
         legend_names=legend_names,
         limit_bar_color=limit_bar_color,
-        file_name='fpgas_brams.pdf',
+        file_name='fpgas_brams.png',
         show_legend=True
     )
     

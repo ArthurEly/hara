@@ -1,0 +1,20 @@
+Model: random_forest
+Mean Squared Error: 11.2088
+R^2 Score: 0.5226
+
+Model: mlp
+Mean Squared Error: 10.4669
+R^2 Score: 0.4403
+
+Model: knn
+Mean Squared Error: 10.5256
+R^2 Score: 0.4941
+
+Model: xgboost
+Mean Squared Error: 11.8015
+R^2 Score: 0.5510
+
+Model: svr
+Mean Squared Error: 9.7244
+R^2 Score: 0.3365
+

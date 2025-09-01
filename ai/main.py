@@ -1,97 +1,128 @@
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-import warnings
-
+# main.py
 import argparse
-from sklearn.preprocessing import StandardScaler
-from xmtr import *
-from utils import get_data_fps, get_random_data, split_data, remove_split_columns, get_instance
-from utils import perform_feature_importance_analysis, perform_correlation_analysis
-from utils import tune_model, evaluate_model
+import os
+import subprocess
+import re
+import glob
 
-warnings.filterwarnings('ignore', category=DeprecationWarning)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-DATASET_PATHS = {
-    'label_select': 'retrieval/results/splitted/preprocessed/vivado_LabelSelect_area_attrs_cleaned.csv',
-    'convolution': 'retrieval/results/splitted/preprocessed/vivado_ConvolutionInputGenerator_area_attrs_cleaned.csv',
-    'padding': 'retrieval/results/splitted/preprocessed/vivado_FMPadding_area_attrs_cleaned.csv',
-    'mvau': 'retrieval/results/splitted/preprocessed/vivado_MVAU_area_attrs_cleaned.csv',
-    'data_width_converter': 'retrieval/results/splitted/preprocessed/vivado_StreamingDataWidthConverter_area_attrs_cleaned.csv',
-    'fifo': 'retrieval/results/splitted/preprocessed/vivado_StreamingFIFO_area_attrs_cleaned.csv'
-}
+def run_command(command):
+    """Executa um comando no shell, mostra o comando e a saída em tempo real."""
+    print(f"\n[CMD] Executando: {' '.join(command)}")
+    try:
+        # Usando Popen para streaming de output em tempo real
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        
+        output_lines = []
+        for line in iter(process.stdout.readline, ''):
+            print(line, end='')
+            output_lines.append(line)
+        
+        process.stdout.close()
+        return_code = process.wait()
+        
+        if return_code != 0:
+            raise subprocess.CalledProcessError(return_code, command)
+            
+        return "".join(output_lines)
+        
+    except subprocess.CalledProcessError as e:
+        print(f"\n[ERRO] O comando falhou com o código de saída {e.returncode}.")
+        exit(1) # Encerra o script principal em caso de erro
 
 def main():
-    parser = argparse.ArgumentParser(description='HARA')
+    parser = argparse.ArgumentParser(
+        description="Orquestrador do Fluxo de Co-Design HARA.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
     
-    parser.add_argument('--input', type=str, help='Name of the dataset to use.',default='data_width_converter', choices=DATASET_PATHS.keys())
-    parser.add_argument('--output', type=str, help='Output CSV file path', default='results/')
-    parser.add_argument('--model', type=str, help='Model type', default='xgboost', choices=['xgboost', 'random_forest', 'neural_network'])
-    parser.add_argument('--split', type=str, help='Split type', default='random')
-    parser.add_argument('--target', type=str, help='Target variable', default='all')
-    parser.add_argument('--plot', type=str, help='Plot type', default='corr')
-
-    parser.add_argument('--tuning', action='store_true', help='Tuning model or not', default=True)
-    parser.add_argument('--importance', action='store_true', help='Feature importance or not', default=True)
-    parser.add_argument('--correlation', action='store_true', help='Correlation analysis or not', default=True)
-    parser.add_argument('--interpret', action='store_true', help='Interpretation or not', default=True)
-
+    # Argumentos para controlar o fluxo, como no original
+    parser.add_argument(
+        '--mode', type=str, default='model-only',
+        choices=['full', 'model-only', 'hardware-only'],
+        help="""Define o modo de operação:
+  - full:          Executa a Fase 1 e depois a Fase 2.
+  - model-only:    Executa apenas a Fase 1.
+  - hardware-only: Executa apenas a Fase 2 (requer flags adicionais)."""
+    )
+    # Argumentos específicos para o modo 'hardware-only'
+    parser.add_argument(
+        '--build-dir', type=str, help="Diretório de build (obrigatório para --mode=hardware-only)."
+    )
+    parser.add_argument(
+        '--input-file', type=str, help="Arquivo de entrada .pth (obrigatório para --mode=hardware-only)."
+    )
+    parser.add_argument(
+        '--topology-id', type=str, help="ID da topologia (obrigatório para --mode=hardware-only)."
+    )
+    parser.add_argument(
+        '--quant', type=int, help="Largura de bits (obrigatório para --mode=hardware-only)."
+    )
+    
     args = parser.parse_args()
+    python_executable = "python3" # Ou "python", dependendo do seu ambiente
 
-    output_directory = os.path.join(args.output, args.input, args.model)
-    os.makedirs(output_directory, exist_ok=True)
-    input_filepath = DATASET_PATHS[args.input]
+    if args.mode == 'model-only':
+        print("--- MODO: OTIMIZAÇÃO DE MODELO (FASE 1) ---")
+        cmd = [python_executable, "run_model_optimization.py"]
+        run_command(cmd)
 
-    train, test = get_random_data(input_filepath)
-
-    if(args.target == 'luts'):
-        args.target = ['Total LUTs']
-    
-    targets_map = {
-        'label_select': ['Total LUT', 'Total FFs'],
-        'convolution': ['Total LUT', 'Total FFs'],
-        'padding': ['Total LUT', 'Total FFs'],
-        'mvau': ['Total LUT', 'Total FFs', 'BRAM (36k eq.)', 'DSP Blocks'],
-        'data_width_converter': ['Total LUT', 'Total FFs'],
-        'fifo': ['Total LUT', 'Total FFs']
-    }
-    args.target = targets_map.get(args.input)
-
-    X_train, y_train = split_data(train, args.target)
-    X_test, y_test = split_data(test, args.target)
-
-    if args.importance:
+    elif args.mode == 'hardware-only':
+        print("--- MODO: EXPLORAÇÃO DE HARDWARE (FASE 2) ---")
+        if not all([args.build_dir, args.input_file, args.topology_id, args.quant]):
+            parser.error("--build-dir, --input-file, --topology-id, e --quant são obrigatórios para o modo hardware-only.")
         
-        importance_output_path = os.path.join(output_directory, 'feature_importance')
-        os.makedirs(importance_output_path, exist_ok=True)
-        unimportant_features, all_feature_importances = perform_feature_importance_analysis(X_train=X_train, y_train=y_train, model_type="random_forest",
-                                                                                            output_path=importance_output_path, importance_threshold=0.015)
-        X_train, X_test = remove_split_columns(X_train, X_test, unimportant_features)
-        y_train, y_test = remove_split_columns(y_train, y_test, unimportant_features)
-        print(f"Removed {len(unimportant_features)} features based on importance threshold.")
+        cmd = [
+            python_executable, "run_hardware_exploration.py",
+            "--build-dir", args.build_dir,
+            "--input-file", args.input_file,
+            "--topology-id", args.topology_id,
+            "--quant", str(args.quant)
+        ]
+        run_command(cmd)
 
-    if args.correlation:
-        correlation_output_path = os.path.join(output_directory, 'correlation')
-        os.makedirs(correlation_output_path, exist_ok=True)
-        correlated_features_to_remove = perform_correlation_analysis(X_train=X_train, y_train=y_train, output_path=correlation_output_path, feature_importances=all_feature_importances, threshold=0.9)
-        X_train, X_test = remove_split_columns(X_train, X_test, correlated_features_to_remove)
-        y_train, y_test = remove_split_columns(y_train, y_test, correlated_features_to_remove)
-        print(f"Removed {len(correlated_features_to_remove)} features based on correlation and importance.")
+    elif args.mode == 'full':
+        print("--- MODO: FLUXO COMPLETO (FASE 1 + FASE 2) ---")
+        
+        # Fase 1
+        print("\n--- [FASE 1] Executando otimização de modelo... ---")
+        cmd_phase1 = [python_executable, "run_model_optimization.py"]
+        phase1_output = run_command(cmd_phase1)
+        
+        # Extrai o diretório de build da saída do script da Fase 1
+        build_dir_match = re.search(r"Diretório principal da execução: (.*)", phase1_output)
+        if not build_dir_match:
+            print("[ERRO] Não foi possível determinar o diretório de build da saída da Fase 1.")
+            exit(1)
+        build_dir = build_dir_match.group(1).strip()
+        print(f"\n[INFO] Diretório de build detectado: {build_dir}")
 
-    if args.model == 'neural_network':
-        print("Scaling data for neural network...")
-        x_scaler = StandardScaler()
-        X_train = x_scaler.fit_transform(X_train)
-        X_test = x_scaler.transform(X_test)
-        y_scaler = StandardScaler()
-        y_train = y_scaler.fit_transform(y_train)
-    
-    if args.tuning:
-        print("Tuning model...")
-        model = tune_model(X_train, y_train, model_type=args.model)
-    
-    print(f"Evaluating {args.model} model...")
-    evaluate_model(model, X_test=X_test, y_test=y_test, output_path=output_directory, y_scaler=y_scaler if args.model == 'neural_network' else None)
-    
+        # Fase 2
+        print("\n--- [FASE 2] Buscando modelos .pth para exploração de hardware... ---")
+        pytorch_models_dir = os.path.join(build_dir, "pytorch_models")
+        model_paths = glob.glob(os.path.join(pytorch_models_dir, "*.pth"))
+
+        if not model_paths:
+            print("[AVISO] Nenhum modelo .pth encontrado para a Fase 2.")
+        else:
+            for model_path in model_paths:
+                filename = os.path.basename(model_path)
+                # Extrai topologia e quantização do nome do arquivo
+                match = re.search(r"t(\w+)w(\d+)_final\.pth", filename)
+                if match:
+                    topology_id, quant = match.groups()
+                    print(f"\n--- Processando {filename} ---")
+                    cmd_phase2 = [
+                        python_executable, "run_hardware_exploration.py",
+                        "--build-dir", build_dir,
+                        "--input-file", model_path,
+                        "--topology-id", topology_id,
+                        "--quant", quant
+                    ]
+                    run_command(cmd_phase2)
+                else:
+                    print(f"[AVISO] Nome de arquivo não padronizado, pulando: {filename}")
+
+    print("\n[SUCESSO] Fluxo principal concluído.")
+
 if __name__ == "__main__":
     main()
