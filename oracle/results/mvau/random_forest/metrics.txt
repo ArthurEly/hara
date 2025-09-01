@@ -1,0 +1,24 @@
+--- Regression Metrics ---
+
+Metrics for target: 'Total LUT'
+  R-squared (R²): 0.9958
+  Mean Squared Error (MSE): 23521.5305
+  Mean Absolute Error (MAE): 32.2861
+
+Metrics for target: 'Total FFs'
+  R-squared (R²): 0.9958
+  Mean Squared Error (MSE): 14077.8588
+  Mean Absolute Error (MAE): 35.7112
+
+Metrics for target: 'BRAM (36k eq.)'
+  R-squared (R²): 0.9982
+  Mean Squared Error (MSE): 0.0146
+  Mean Absolute Error (MAE): 0.0277
+
+Metrics for target: 'DSP Blocks'
+  R-squared (R²): 0.9979
+  Mean Squared Error (MSE): 3.3976
+  Mean Absolute Error (MAE): 0.3633
+
+--- Average Metrics Across All Targets ---
+  Average R-squared (R²): 0.9969

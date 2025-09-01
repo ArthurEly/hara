@@ -11,3 +11,4 @@ test.py
 test.py
 *.pdf
 keras_tuner_dir/
+*.pkl
