@@ -1,0 +1,9 @@
+{
+  "model_id": "MNIST",
+  "area_constraints": {
+    "Total LUTs": 45000,
+    "FFs": 90000,
+    "BRAM (36k)": 120,
+    "DSP Blocks": 180
+  }
+}

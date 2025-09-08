@@ -4,7 +4,7 @@
 # CONFIGURAÇÕES DE TOPOLOGIA E QUANTIZAÇÃO
 # ==============================================================================
 # Mapeia o ID da topologia para a classe correspondente.
-from cnns_classes import t1_quantizedCNN, t2_quantizedCNN, CommonWeightQuant, CommonUintActQuant
+from cnns_classes import t1_quantizedCNN, t2_quantizedCNN
 
 # --- Configurações de Performance de Classificação ---
 CLASSIFICATION_CONSTRAINTS = {
@@ -18,10 +18,10 @@ CLASSIFICATION_CONSTRAINTS = {
 # --- Configurações de Treino e Pruning ---
 TRAINING_CONFIG = {
     'epochs_per_bitwidth': 50,
-    'patience_epochs': 20,
-    'learning_rate': 3e-4,
+    'patience_epochs': 15,
+    'learning_rate': 3e-5,
     'batch_size': 512,
-    'pruning_enabled': True,
+    'pruning_enabled': False,
     
     'pruning_strategy': {
         # Método: 'iterative' (1 por 1, lento, preciso) ou 'percentage' (em lotes, rápido)
@@ -34,40 +34,23 @@ TRAINING_CONFIG = {
 }
 
 FINETUNING_CONFIG = {
-    'enabled': True,
-    'epochs': 25,                # Um número menor de épocas é geralmente suficiente
+    'enabled': False,
+    'epochs': 1,                # Um número menor de épocas é geralmente suficiente
     'learning_rate': 1e-4,       # Uma taxa de aprendizado menor para um ajuste fino
     'patience_epochs': 5,         # Paciência para o early stopping do fine-tuning
     'max_pruning_finetuning_cycles': -1
 }
 
 TOPOLOGY_MAP = {
-    1: t1_quantizedCNN,
-    2: t2_quantizedCNN
+    "SAT6_T1": t1_quantizedCNN,
+    "SAT6_T2": t2_quantizedCNN
 }
 
 # Define as topologias e os níveis de quantização a serem explorados.
 TOPOLOGIES_TO_EXPLORE = [
     {
-        'id': 2,
-        'tp_class': TOPOLOGY_MAP[2],
-        'quant_strategy': {
-            # [CORRIGIDO] O método agora é 'sweep'
-            'method': 'sweep',
-            'sweep_target': 'both', # Pode ser 'weight', 'activation' ou 'both'
-            'start_bits': [1, 1],
-            'end_bits': [8, 8],
-        },
-        # Esta lista é ignorada quando o método é 'sweep'
-        'quant_list': [ ],
-        'quantizers': {
-            'weight': CommonWeightQuant,
-            'activation': CommonUintActQuant
-        }
-    },
-    {
-        'id': 1,
-        'tp_class': TOPOLOGY_MAP[1],
+        'id': "SAT6_T2",
+        'tp_class': TOPOLOGY_MAP["SAT6_T2"],
         'quant_strategy': {
             # [CORRIGIDO] O método agora é 'sweep'
             'method': 'sweep',
@@ -76,12 +59,21 @@ TOPOLOGIES_TO_EXPLORE = [
             'end_bits': [8, 8],
         },
         # Esta lista é ignorada quando o método é 'sweep'
-        'quant_list': [ ],
-        'quantizers': {
-            'weight': CommonWeightQuant,
-            'activation': CommonUintActQuant
-        }
+        'quant_list': [ ]
     },
+    #{
+    #    'id': 1,
+    #    'tp_class': TOPOLOGY_MAP[1],
+    #    'quant_strategy': {
+    #        # [CORRIGIDO] O método agora é 'sweep'
+    #        'method': 'sweep',
+    #        'sweep_target': 'both', # Pode ser 'weight', 'activation' ou 'both'
+    #        'start_bits': [2, 2],
+    #        'end_bits': [8, 8],
+    #    },
+    #    # Esta lista é ignorada quando o método é 'sweep'
+    #    'quant_list': [ ]
+    #},
 ]
 
 # ==============================================================================
@@ -89,18 +81,16 @@ TOPOLOGIES_TO_EXPLORE = [
 # ==============================================================================
 # Define os limites máximos de recursos da placa alvo (ex: Pynq-Z1).
 MAX_RESOURCES = {
-    "Total LUTs": 53200,
-    "LUTRAMs": 17400,
-    "Logic LUTs": 53200,
-    "FFs": 106400,
-    "BRAM (36k)": 140, # Equivalente a 140 RAMB36 ou 280 RAMB18
-    "DSP Blocks": 220
+    "Total LUTs": 134600,
+    "FFs": 269200,
+    "BRAM (36k)": 365,
+    "DSP Blocks": 740
 }
 
 # Define os percentuais da placa a serem usados como teto em diferentes estágios.
 # Por exemplo, o HARA tentará encontrar a melhor solução usando até 10% da placa,
 # depois até 20%, e assim por diante.
-TARGET_RESOURCE_PERCENTAGES = [0.1, 0.2, 0.4, 0.8]
+TARGET_RESOURCE_PERCENTAGES = [1]
 
 # ==============================================================================
 # CONFIGURAÇÕES DOS PASSOS DE BUILD (STEPS) DO FINN
@@ -172,7 +162,5 @@ HARA_LOOP_CONFIG = {
     'max_runs_per_stage': -1, # -1 para ilimitado
     'modify_functions': [
         "modify_folding",
-        "modify_folding_greedy",
-        "modify_folding_naive",
     ]
 }

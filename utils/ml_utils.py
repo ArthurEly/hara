@@ -63,12 +63,17 @@ def generate_arch_config(model):
             config[f"{name}_out"] = module.out_features
     return config
 
-def load_pruned_model(base_model_path):
+def load_pruned_model(model_pth_path):
     """
     Carrega um modelo podado a partir de um par de arquivos .yaml (arquitetura) e .pth (pesos).
     """
-    yaml_path = f"{base_model_path}.yaml"
-    pth_path = f"{base_model_path}.pth"
+    # --- CORREÇÃO APLICADA ---
+    # Remove a extensão do caminho de entrada para obter o nome base do arquivo.
+    base_path, _ = os.path.splitext(model_pth_path)
+    
+    # Monta os caminhos corretos para os arquivos .yaml e .pth.
+    yaml_path = f"{base_path}.yaml"
+    pth_path = f"{base_path}.pth" # Garante que o caminho .pth está correto
     
     # 1. Carrega a configuração da arquitetura do arquivo YAML
     with open(yaml_path, 'r') as f:
@@ -78,25 +83,15 @@ def load_pruned_model(base_model_path):
     arch_config = metadata['arch_config']
     w_bits = metadata['bit_widths']['weight']
     a_bits = metadata['bit_widths']['activation']
-    
-    # 2. Carrega as classes de quantizadores dinamicamente pelo nome
-    quant_class_names = metadata['quantizer_classes']
-    # Importa o módulo onde as classes de quantizadores estão definidas
-    quant_module = importlib.import_module("cnns_classes")
-    
-    w_quant_class = getattr(quant_module, quant_class_names['weight'])
-    a_quant_class = getattr(quant_module, quant_class_names['activation'])
-    
+            
     # 3. Obtém a classe do modelo e instancia com a config completa
     model_class = TOPOLOGY_MAP.get(topology_id)
     if not model_class:
         raise ValueError(f"ID de topologia '{topology_id}' não encontrado.")
-        
+            
     model = model_class(
         weight_bit_width=w_bits,
         act_bit_width=a_bits,
-        weight_quant_class=w_quant_class,
-        act_quant_class=a_quant_class,
         arch_config=arch_config
     )
     
@@ -212,7 +207,7 @@ class Trainer:
         assim que a meta de performance das 'constraints' for atingida.
         """
         model.to(self.device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
         criterion = torch.nn.CrossEntropyLoss()
 
         best_val_loss = float('inf')
@@ -231,6 +226,7 @@ class Trainer:
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
                 train_loss += loss.item()
                 train_iterator.set_postfix({'loss': loss.item()})

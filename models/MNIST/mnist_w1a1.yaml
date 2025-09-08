@@ -1,0 +1,7 @@
+model_source: brevitas_example
+topology_id: MNIST_TFC
+model_name: TFC
+pretrained: true
+bit_widths:
+  weight: 1
+  activation: 1

@@ -26,8 +26,8 @@ class ModelOptimizer:
         self.train_loader, self.test_loader, self.test_len = load_dataloaders(
             self.training_config['batch_size']
         )
-        self.trainer = Trainer(self.train_loader, self.test_loader, device='cuda' if torch.cuda.is_available() else 'cpu')
-        self.evaluator = Evaluator(self.test_loader, device='cuda' if torch.cuda.is_available() else 'cpu')
+        self.trainer = Trainer(self.train_loader, self.test_loader, device='cpu')
+        self.evaluator = Evaluator(self.test_loader, device='cpu')
         self.pruner = Pruner()
         self.training_summary_path = os.path.join(build_dir, "training_summary.csv")
         self._init_summary_file()
@@ -83,7 +83,6 @@ class ModelOptimizer:
         """
         topology_id = topology_info['id']
         topology_class = topology_info['tp_class']
-        quantizer_cfg = topology_info['quantizers']
         
         # --- LÓGICA ATUALIZADA: Gera a lista de larguras de bits a serem testadas ---
         strategy = topology_info.get('quant_strategy')
@@ -132,8 +131,6 @@ class ModelOptimizer:
             model = topology_class(
                 weight_bit_width=w_bits,
                 act_bit_width=a_bits,
-                weight_quant_class=quantizer_cfg['weight'],
-                act_quant_class=quantizer_cfg['activation']
             )
             
             trained_model, _ = self.trainer.train(
@@ -230,12 +227,12 @@ class ModelOptimizer:
                 print("\n--- Salvando modelo final otimizado ---")
                 final_arch_config = generate_arch_config(final_model)
                 metadata = {
+                    'model_source': 'hara_internal',
                     'topology_id': topology_id,
-                    'bit_widths': {'weight': w_bits, 'activation': a_bits},
-                    'quantizer_classes': {'weight': quantizer_cfg['weight'].__name__, 'activation': quantizer_cfg['activation'].__name__},
+                    'bit_widths': {'weight': w_bits, 'activation': a_bits},                    
                     'arch_config': final_arch_config,
                 }
-                base_filename = f"t{topology_id}w{w_bits}a{a_bits}_final"
+                base_filename = f"{topology_id}w{w_bits}a{a_bits}_final"
                 yaml_path = os.path.join(self.pytorch_models_dir, f"{base_filename}.yaml")
                 pth_path = os.path.join(self.pytorch_models_dir, f"{base_filename}.pth")
                 with open(yaml_path, 'w') as f:

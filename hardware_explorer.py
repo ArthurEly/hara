@@ -5,11 +5,10 @@ from datetime import datetime
 import torch
 
 # Importa as ferramentas e as configurações
-from utils.hw_utils import utils, export_to_onnx
+from utils.hw_utils import utils, get_finn_ready_model
 # Importa SatImgDataset para que torch.load consiga carregar o modelo
-from utils.ml_utils import SatImgDataset
+from utils.ml_utils import SatImgDataset, load_pruned_model
 from config import (
-    MAX_RESOURCES,
     TARGET_RESOURCE_PERCENTAGES,
     BUILD_CONFIG,
     HARA_LOOP_CONFIG
@@ -100,9 +99,9 @@ class HardwareExplorer:
         """
         Executa o build inicial para um dado ONNX para obter um baseline de folding.
         """
+        # ... (a primeira parte da função permanece a mesma)
         print(f"\n🚀 [FIRST RUN] Gerando baseline de hardware para o modelo fornecido...")
         
-        # 1. Estima o folding inicial
         cfg = self.build_config['first_run_estimate']
         hw_name_est = utils.get_hardware_config_name(topology_id, quant, cfg['target_fps'], "_run0_estimate")
         result = self._run_single_build(onnx_model_path, hw_name_est, quant, topology_id, cfg['steps'], target_fps=cfg['target_fps'])
@@ -111,9 +110,15 @@ class HardwareExplorer:
             print("[✗] Falha ao gerar a estimativa inicial de folding.")
             return None, None
 
-        # 2. Reseta o folding e executa o build completo
         initial_folding = utils.read_folding_config(result['build_dir'])
-        reset_folding = utils.reset_folding(initial_folding, onnx_model_path)
+        intermediate_onnx_path = os.path.join(
+            result['build_dir'], "intermediate_models", "step_generate_estimate_reports.onnx"
+        )
+        if not os.path.exists(intermediate_onnx_path):
+            print(f"[✗] ERRO CRÍTICO: O modelo ONNX intermediário não foi encontrado.")
+            return None, None
+        
+        reset_folding = utils.reset_folding(initial_folding, intermediate_onnx_path)
         
         hw_name_final = utils.get_hardware_config_name(topology_id, quant, None, "_run0_final")
         folding_path = os.path.join(self.base_build_dir, f"{hw_name_final}_folding_reset.json")
@@ -130,8 +135,44 @@ class HardwareExplorer:
             print(f"[✓] Baseline de hardware gerado com sucesso: {hw_name_final}")
             return result_final['folding'], result_final['hw_name']
         else:
+            # --- LÓGICA DE TENTATIVA E ERRO ADICIONADA AQUI ---
             print("[✗] Falha ao construir o hardware de baseline.")
-            return None, None
+            print("  -> Tentando realizar trade-off automático de recursos (BRAM -> LUTRAM)...")
+
+            failed_build_dir = result_final.get('build_dir')
+            if not failed_build_dir:
+                print("  -> [!] Não foi possível encontrar o diretório do build que falhou. Abortando.")
+                return None, None
+
+            # Chama a nova função para tentar modificar o folding
+            modified_folding, was_modified = utils.attempt_resource_tradeoff(
+                current_folding=reset_folding,
+                failed_build_dir=failed_build_dir,
+                resource_limits=self.resource_limits_max
+            )
+
+            if was_modified:
+                print("  -> [✓] Trade-off aplicado. Tentando o build novamente com a nova configuração.")
+                hw_name_retry = utils.get_hardware_config_name(topology_id, quant, None, "_run0_final_retry")
+                folding_path_retry = os.path.join(self.base_build_dir, f"{hw_name_retry}_folding_tradeoff.json")
+                with open(folding_path_retry, "w") as f:
+                    json.dump(modified_folding, f, indent=4)
+
+                # Executa o build novamente com o folding modificado
+                result_retry = self._run_single_build(
+                    onnx_model_path, hw_name_retry, quant, topology_id, cfg_final['steps'],
+                    folding_path=folding_path_retry, resource_limits=self.resource_limits_max
+                )
+
+                if result_retry.get('status') == 'success':
+                    print(f"[✓] Baseline de hardware gerado com sucesso na segunda tentativa: {hw_name_retry}")
+                    return result_retry['folding'], result_retry['hw_name']
+                else:
+                    print("[✗] Falha ao construir o hardware mesmo após o trade-off.")
+                    return None, None
+            else:
+                print("  -> [!] Nenhum trade-off de BRAM -> LUTRAM pôde ser aplicado. A falha é definitiva.")
+                return None, None
 
     def _select_best_strategy(self, modify_func, folding_input, onnx_path, estimate_cycles, base_hw_name, quant, topology_id):
         """Testa estratégias de modificação (PE, SIMD, BOTH) e retorna a melhor."""
@@ -147,7 +188,7 @@ class HardwareExplorer:
             
         return folding_opt, base_hw_name
         
-    def _perform_hara_loop(self, quant, topology_id):
+    def _perform_hara_loop(self, onnx_model_path, quant, topology_id):
         """Executa o loop principal de exploração HARA."""
         
         for modify_func_name in self.hara_loop_config['modify_functions']:
@@ -189,7 +230,7 @@ class HardwareExplorer:
 
                     cfg = self.build_config['hara_build']
                     result = self._run_single_build(
-                        hw_name, quant, topology_id, cfg['steps'],
+                        onnx_model_path, hw_name, quant, topology_id, cfg['steps'],
                         folding_path=folding_path, resource_limits=current_limits
                     )
 
@@ -206,31 +247,26 @@ class HardwareExplorer:
 
                     self.run_number += 1
 
-    def run_exploration(self, model_path, quant, topology_id):
+    def run_exploration(self, model_info):
         """
         Método público que orquestra a exploração de hardware.
-        Agora, ele primeiro converte o modelo .pth para .onnx, se necessário.
+        Recebe o dicionário model_info completo.
         """
-        # --- ALTERAÇÃO PRINCIPAL ---
-        # Verifica se o modelo de entrada é .pth ou .onnx
-        if model_path.endswith(".pth"):
-            print(f"-> Recebido modelo PyTorch: {os.path.basename(model_path)}. Convertendo para formato FINN ONNX...")
-            # Carrega o modelo PyTorch salvo
-            # A importação de SatImgDataset é necessária para o unpickling do torch
-            model = torch.load(model_path)
-            # Usa a função de hw_utils para converter e preparar o ONNX para o FINN
-            onnx_model_path = export_to_onnx(model, self.base_build_dir, topology_id, quant)
+        topology_id = model_info.get("topology_id")
+        quant = model_info.get("quant")
+        print(f"--- Iniciando exploração de hardware para: {topology_id} ---")
+
+        try:
+            # A função get_finn_ready_model agora recebe o dicionário inteiro
+            # e sabe como lidar com cada caso (com ou sem model_path).
+            onnx_model_path = get_finn_ready_model(model_info, self.base_build_dir)
             if not onnx_model_path:
-                print("[✗] Falha ao converter o modelo PyTorch para ONNX. Abortando.")
+                print("[✗] Falha ao preparar o modelo ONNX pronto para o FINN. Abortando.")
                 return
+        except (FileNotFoundError, ValueError, RuntimeError) as e:
+            print(f"[✗] Erro durante a preparação do modelo: {e}. Abortando.")
+            return
 
-        elif model_path.endswith(".onnx"):
-            print(f"-> Recebido modelo ONNX: {os.path.basename(model_path)}. Pulando a etapa de conversão.")
-            onnx_model_path = model_path
-        else:
-            raise ValueError(f"Formato de arquivo de modelo inválido: {model_path}. Use .pth ou .onnx")
-
-        # O resto do fluxo continua a partir daqui, usando o `onnx_model_path`
         self.run_number = 1
         self.last_valid_folding = None
         self.last_valid_hw_name = None
@@ -242,17 +278,6 @@ class HardwareExplorer:
             self.last_valid_hw_name = initial_hw_name
             self.last_valid_build_dir = os.path.join(self.base_build_dir, initial_hw_name)
             
-            # O HARA loop já usa o onnx intermediário da última build, então não precisa de mudanças
-            self._perform_hara_loop(quant, topology_id)
+            self._perform_hara_loop(onnx_model_path, quant, topology_id)
         else:
             print(f"[✗] Falha crítica na criação do baseline de hardware. Abortando exploração.")
-
-if __name__ == "__main__":
-    # Ponto de entrada do script
-    explorer = HardwareExplorer(
-        config=BUILD_CONFIG,
-        resource_limits=MAX_RESOURCES,
-        hara_loop_config=HARA_LOOP_CONFIG,
-        topologies=TOPOLOGIES_TO_EXPLORE
-    )
-    explorer.run_exploration()

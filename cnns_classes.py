@@ -1,6 +1,6 @@
 # Copyright (C) 2023, Advanced Micro Devices, Inc. All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
 
+# SPDX-License-Identifier: BSD-3-Clause
 from dependencies import value
 
 from brevitas.core.bit_width import BitWidthImplType
@@ -19,6 +19,7 @@ import torch.nn.functional as F
 import brevitas.nn as qnn
 from brevitas.quant.scaled_int import Int8ActPerTensorFloat
 
+
 class CommonQuant(ExtendedInjector):
     bit_width_impl_type = BitWidthImplType.CONST
     scaling_impl_type = ScalingImplType.CONST
@@ -28,6 +29,7 @@ class CommonQuant(ExtendedInjector):
     scaling_per_output_channel = False
     narrow_range = True
     signed = True
+
 
     @value
     def quant_type(bit_width):
@@ -52,66 +54,86 @@ class CommonUintActQuant(Uint8ActPerTensorFloat):
     bit_width = None
     restrict_scaling_type = RestrictValueType.LOG_FP
 
+class CommonActQuant(CommonQuant, ActQuantSolver):
+    min_val = -1.0
+    max_val = 1.0
+
 class t1_quantizedCNN(nn.Module):
-    # --- [MODIFICADO] __init__ agora aceita as classes de quantizadores ---
-    def __init__(self, weight_bit_width, act_bit_width, weight_quant_class, act_quant_class, arch_config=None):
+
+    def __init__(self, weight_bit_width, act_bit_width, arch_config=None):
         super(t1_quantizedCNN, self).__init__()
+
         if arch_config is None: arch_config = {}
 
         conv1_out = arch_config.get('conv1_out', 20)
         conv2_out = arch_config.get('conv2_out', 8)
-        
+
         self.conv1 = qnn.QuantConv2d(
             4, conv1_out, kernel_size=3, stride=2, padding=1, bias=False,
-            weight_bit_width=weight_bit_width, weight_quant=weight_quant_class)
-        
+            weight_bit_width=weight_bit_width, weight_quant=CommonWeightQuant)
+
         self.relu1 = qnn.QuantReLU(
-            act_quant=act_quant_class, bit_width=act_bit_width, return_quant_tensor=True)
-        
+            act_quant=CommonUintActQuant, bit_width=act_bit_width, return_quant_tensor=True)
+
         self.conv2 = qnn.QuantConv2d(
             conv1_out, conv2_out, kernel_size=1, stride=1, bias=False,
-            weight_bit_width=weight_bit_width, weight_quant=weight_quant_class)
+            weight_bit_width=weight_bit_width, weight_quant=CommonWeightQuant)
+
 
         self.relu2 = qnn.QuantReLU(
-            act_quant=act_quant_class, bit_width=act_bit_width, return_quant_tensor=True)
-        
+            act_quant=CommonUintActQuant, bit_width=act_bit_width, return_quant_tensor=True)
+
         self.fc1 = qnn.QuantLinear(
             conv2_out * 16 * 16, 6, bias=False,
-            weight_bit_width=weight_bit_width, weight_quant=weight_quant_class)
+            weight_bit_width=weight_bit_width, weight_quant=CommonWeightQuant)
+        
+        for m in self.modules():
+            if isinstance(m, qnn.QuantConv2d) or isinstance(m, qnn.QuantLinear):
+                nn.init.uniform_(m.weight.data, -1, 1)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias.data)  
 
     def forward(self, x):
-        # ... (sem alterações)
         x = self.conv1(x); x = self.relu1(x)
         x = self.conv2(x); x = self.relu2(x)
         x = x.view(x.size(0), -1)
-        x = self.fc1(x)      
+        x = self.fc1(x)
         return x
 
-class t2_quantizedCNN(nn.Module):
-    # --- [MODIFICADO] __init__ agora aceita as classes de quantizadores ---
-    def __init__(self, weight_bit_width, act_bit_width, weight_quant_class, act_quant_class, arch_config=None):
-        super(t2_quantizedCNN, self).__init__()
-        if arch_config is None: arch_config = {}
 
+class t2_quantizedCNN(nn.Module):
+    def __init__(self, weight_bit_width, act_bit_width, arch_config=None):
+        super(t2_quantizedCNN, self).__init__()
+
+        if arch_config is None: arch_config = {}
+        
         conv1_out = arch_config.get('conv1_out', 16)
         conv2_out = arch_config.get('conv2_out', 8)
         conv3_out = arch_config.get('conv3_out', 16)
         conv4_out = arch_config.get('conv4_out', 8)
+        
+        act_quant_class = CommonUintActQuant if act_bit_width > 1 else CommonActQuant
+        act_layer = qnn.QuantReLU if act_bit_width > 1 else qnn.QuantIdentity
 
-        self.conv1 = qnn.QuantConv2d(4, conv1_out, 3, 2, 1, bias=False, w_bw=weight_bit_width, w_q=weight_quant_class)
-        self.relu1 = qnn.QuantReLU(act_quant=act_quant_class, bit_width=act_bit_width, return_quant_tensor=True)
-        self.conv2 = qnn.QuantConv2d(conv1_out, conv2_out, 3, 2, 1, bias=False, w_bw=weight_bit_width, w_q=weight_quant_class)
-        self.relu2 = qnn.QuantReLU(act_quant=act_quant_class, bit_width=act_bit_width, return_quant_tensor=True)
-        self.conv3 = qnn.QuantConv2d(conv2_out, conv3_out, 3, 2, 1, bias=False, w_bw=weight_bit_width, w_q=weight_quant_class)
-        self.relu3 = qnn.QuantReLU(act_quant=act_quant_class, bit_width=act_bit_width, return_quant_tensor=True)
-        self.conv4 = qnn.QuantConv2d(conv3_out, conv4_out, 3, 2, 1, bias=False, w_bw=weight_bit_width, w_q=weight_quant_class)
-        self.relu4 = qnn.QuantReLU(act_quant=act_quant_class, bit_width=act_bit_width, return_quant_tensor=True)
-        self.fc1 = qnn.QuantLinear(conv4_out * 2 * 2, 6, bias=False, w_bw=weight_bit_width, w_q=weight_quant_class)
+        self.conv1 = qnn.QuantConv2d(4, conv1_out, 3, 2, 1, bias=False, weight_bit_width=weight_bit_width, weight_quant=CommonWeightQuant)
+        self.relu1 = act_layer(act_quant=act_quant_class, bit_width=act_bit_width, return_quant_tensor=True)
+        self.conv2 = qnn.QuantConv2d(conv1_out, conv2_out, 3, 2, 1, bias=False, weight_bit_width=weight_bit_width, weight_quant=CommonWeightQuant)
+        self.relu2 = act_layer(act_quant=act_quant_class, bit_width=act_bit_width, return_quant_tensor=True)
+        self.conv3 = qnn.QuantConv2d(conv2_out, conv3_out, 3, 2, 1, bias=False, weight_bit_width=weight_bit_width, weight_quant=CommonWeightQuant)
+        self.relu3 = act_layer(act_quant=act_quant_class, bit_width=act_bit_width, return_quant_tensor=True)
+        self.conv4 = qnn.QuantConv2d(conv3_out, conv4_out, 3, 2, 1, bias=False, weight_bit_width=weight_bit_width, weight_quant=CommonWeightQuant)
+        self.relu4 = act_layer(act_quant=act_quant_class, bit_width=act_bit_width, return_quant_tensor=True)
+        self.fc1 = qnn.QuantLinear(conv4_out * 2 * 2, 6, bias=False, weight_bit_width=weight_bit_width, weight_quant=CommonWeightQuant)
+        
+        for m in self.modules():
+            if isinstance(m, qnn.QuantConv2d) or isinstance(m, qnn.QuantLinear):
+                nn.init.uniform_(m.weight.data, -1, 1)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias.data)                    
 
     def forward(self, x):
-        # ... (sem alterações)
         x = self.conv1(x); x = self.relu1(x); x = self.conv2(x); x = self.relu2(x)
         x = self.conv3(x); x = self.relu3(x); x = self.conv4(x); x = self.relu4(x)
         x = x.view(x.size(0), -1)
-        x = self.fc1(x)      
-        return x
+        x = self.fc1(x)
+        return x 

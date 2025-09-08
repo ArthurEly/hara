@@ -1,0 +1,19 @@
+# Indica que o modelo vem de um repositório externo e não foi treinado pelo HARA.
+model_source: brevitas_example
+
+# O ID que você definiu no pipeline_map em hw_utils.py para o pipeline de
+# transformação da arquitetura CNV.
+topology_id: CIFAR10_CNV
+
+# O nome exato que a função "get_test_model_trained" do FINN espera para
+# baixar o modelo CNV pré-treinado.
+model_name: CNV
+
+# O flag crucial que diz à função get_finn_ready_model para BAIXAR este modelo
+# em vez de procurar por um arquivo .tar local.
+pretrained: true
+
+# A largura de bits específica para este modelo a ser baixado (neste caso, 1-bit).
+bit_widths:
+  weight: 1
+  activation: 1
