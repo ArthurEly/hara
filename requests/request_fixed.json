@@ -1,0 +1,11 @@
+{
+  "model_id": "SAT6_T2",
+  "simulation_mode": false,
+  "area_constraints": {
+    "Total LUTs": 134600,
+    "FFs": 269200,
+    "BRAM (36k)": 365,
+    "DSP Blocks": 740
+  },
+  "fixed_resources": "auto"
+}

@@ -1,4 +1,5 @@
 # --- Bibliotecas Padrão do Python ---
+import copy # <-- ADICIONADO
 import csv
 import json
 import os
@@ -585,8 +586,12 @@ class utils():
             if layer == "Defaults":
                 new_folding[layer] = {k: cfg[k] for k in ("PE", "SIMD") if k in cfg}
                 continue
-
-            new_cfg = {k: cfg[k] for k in ("PE", "SIMD", "parallel_window") if k in cfg}
+            
+            # --- MODIFICADO ---
+            # Preserva todas as chaves existentes (como ram_style)
+            new_cfg = copy.deepcopy(cfg)
+            # --- FIM DA MODIFICAÇÃO ---
+            
             f = feature_dims.get(layer, {})
             modified = False
 
@@ -657,7 +662,11 @@ class utils():
                 continue
 
             cfg = folding[layer]
-            new_cfg = {k: v for k, v in cfg.items() if k in ["PE", "SIMD", "parallel_window"]}
+            # --- MODIFICADO ---
+            # Preserva todas as chaves existentes (como ram_style)
+            new_cfg = copy.deepcopy(cfg)
+            # --- FIM DA MODIFICAÇÃO ---
+
             layer_features = feature_dims.get(layer, {})
             modified = False
 
@@ -708,8 +717,15 @@ class utils():
                     only_pe=False, only_simd=False, mvau_wwidth_max=36, max_pe=128):
         import onnx
         from onnx import helper
+        import re
+        import json
+        import copy
 
         def get_layer_features(path):
+            """
+            Função atualizada para extrair apenas as dimensões de folding (MH/MW)
+            sem a lógica de WBits.
+            """
             model = onnx.load(path)
             feats = {}
             for node in model.graph.node:
@@ -717,151 +733,155 @@ class utils():
                 op = node.op_type
                 attr = {a.name: helper.get_attribute_value(a) for a in node.attribute}
                 f = {"op_type": op}
-                if op in ["MVAU_hls", "MVAU_rtl"]:
+
+                if op.startswith("MatrixVectorActivation") or op.startswith("MVAU"):
                     f["MW"] = int(attr.get("MW", 0))
                     f["MH"] = int(attr.get("MH", 0))
-                    f["WBits"] = int(attr.get("WBits", 1))
-                if op.startswith("ConvolutionInputGenerator"):
-                    f["IFMChannels"] = int(attr.get("IFMChannels", 0))
-                    f["depthwise"]    = int(attr.get("depthwise", 0))
-                if op in ["FMPadding_rtl", "FMPadding_hls"]:
-                    f["NumChannels"] = int(attr.get("NumChannels", 0))
+                elif op.startswith("ConvolutionInputGenerator") or op.startswith("Downsampler"):
+                    f["MW"] = int(attr.get("IFMChannels", 0))
+                elif op.startswith("FMPadding"):
+                    f["MW"] = int(attr.get("NumChannels", 0))
+                elif op.startswith("Thresholding") or op.startswith("StreamingMaxPool") or op.startswith("StreamingEltwise") or op.startswith("AddStreams") or op.startswith("ChannelwiseOp") or op.startswith("DuplicateStreams") or op.startswith("Globalaccpool"):
+                    f["MH"] = int(attr.get("NumChannels", 0))
+                elif op.startswith("LabelSelect"):
+                    f["MH"] = int(attr.get("Labels", 0))
+                elif op.startswith("VectorVectorActivation"):
+                    k_dims = attr.get("Kernel", [1, 1])
+                    f["MW"] = k_dims[0] * k_dims[1]
+                    f["MH"] = int(attr.get("NumChannels", 0))
+
                 feats[name] = f
             return feats
 
         def next_divisor(n, current):
-            """
-            Retorna o menor divisor de n que é > current. 
-            Se não houver, retorna None.
-            """
-            for d in range(current+1, n+1):
-                if n % d == 0:
-                    return d
+            if n is None or current is None or n == 0: return None
+            for d in range(current + 1, n + 1):
+                if n % d == 0: return d
             return None
 
         feature_dims = get_layer_features(onnx_path)
         new_folding = {}
         layers_modified = False
+        max_lat = max(estimate_layer_cycles.values()) if estimate_layer_cycles else 0
+        critical = {k for k, v in estimate_layer_cycles.items() if v == max_lat}
 
-        # Camadas críticas (maior latência estimada)
-        max_lat = max(estimate_layer_cycles.values())
-        critical = {k for k,v in estimate_layer_cycles.items() if v == max_lat}
+        print(f"\n[DEBUG] Latência máxima (gargalo): {max_lat} ciclos")
+        print(f"[DEBUG] Camada(s) crítica(s) identificada(s): {critical}")
 
         for layer, cfg in folding.items():
             if layer == "Defaults":
-                new_folding[layer] = {k: cfg[k] for k in ("PE","SIMD") if k in cfg}
+                new_folding[layer] = {k: cfg[k] for k in ("PE", "SIMD") if k in cfg}
                 continue
-
-            new_cfg = {k: cfg[k] for k in ("PE","SIMD","parallel_window") if k in cfg}
+            new_cfg = copy.deepcopy(cfg)
             f = feature_dims.get(layer, {})
             modified = False
-
+            
             if layer in critical:
-                op = f.get("op_type","")
-
-                # Caso especial de ConvInpGen depthwise=0
-                if op.startswith("ConvolutionInputGenerator") and f.get("depthwise",1)==0:
-                    if new_cfg.get("SIMD",1) == f.get("IFMChannels",0):
-                        new_cfg["parallel_window"] = 1
-                        modified = True
-
-                # 1) Avançar SIMD para o próximo divisor da dimensão relevante
+                print(f"\n[DEBUG] --- Processando camada crítica: {layer} ---")
+                
                 if not only_pe and "SIMD" in new_cfg:
-                    # escolhe a dimensão: MW, IFMChannels ou NumChannels
-                    dim = f.get("MW") or f.get("IFMChannels") or f.get("NumChannels")
-                    simd0 = new_cfg["SIMD"]
-                    nxt = next_divisor(dim, simd0)
-                    if nxt is not None:
-                        # verifica condição de largura de stream p/ MVAU
-                        if not op.startswith("MVAU") or (nxt * f.get("WBits",1)) <= new_cfg.get("PE",1) * mvau_wwidth_max:
-                            new_cfg["SIMD"] = nxt
+                    dim_simd = f.get("MW")
+                    simd0 = new_cfg.get("SIMD")
+                    print(f"[DEBUG]     -> Tentando otimizar SIMD: Dimensão (MW) = {dim_simd}, Valor Atual = {simd0}")
+                    if dim_simd is not None and simd0 is not None:
+                        nxt_simd = next_divisor(dim_simd, simd0)
+                        print(f"[DEBUG]       -> Próximo divisor para SIMD: {nxt_simd}")
+
+                        # --- Adição do caso especial para ConvolutionInputGenerator ---
+                        if nxt_simd is None and new_cfg.get("parallel_window", 0) == 0 and ("ConvolutionInputGenerator" in f.get("op_type", "")):
+                            print(f"[DEBUG]       -> SIMD já está no máximo para {layer}. Ativando parallel_window.")
+                            new_cfg["parallel_window"] = 1
+                            modified = True
+                        elif nxt_simd is not None:
+                            new_cfg["SIMD"] = nxt_simd
                             modified = True
 
-                # 2) Só avança PE se SIMD não mudou
                 if not modified and not only_simd and "PE" in new_cfg:
-                    mh = f.get("MH")
-                    pe0 = new_cfg["PE"]
-                    nxt_pe = next_divisor(mh, pe0)
-                    if nxt_pe is not None and nxt_pe <= max_pe:
-                        new_cfg["PE"] = nxt_pe
-                        modified = True
-
+                    dim_pe = f.get("MH")
+                    pe0 = new_cfg.get("PE")
+                    print(f"[DEBUG]     -> Tentando otimizar PE: Dimensão (MH) = {dim_pe}, Valor Atual = {pe0}")
+                    if dim_pe is not None and pe0 is not None:
+                        nxt_pe = next_divisor(dim_pe, pe0)
+                        print(f"[DEBUG]       -> Próximo divisor para PE: {nxt_pe}")
+                        if nxt_pe is not None and nxt_pe <= max_pe:
+                            new_cfg["PE"] = nxt_pe
+                            modified = True
+            
             if modified:
                 layers_modified = True
-                print(f"[↑] {layer}: PE {cfg.get('PE')}→{new_cfg.get('PE')}, SIMD {cfg.get('SIMD')}→{new_cfg.get('SIMD')}")
-            #else:
-                #print(f"[=] {layer}: sem modificação (PE {cfg.get('PE')}, SIMD {cfg.get('SIMD')})")
-
+                pe_old, pe_new = cfg.get('PE'), new_cfg.get('PE')
+                simd_old, simd_new = cfg.get('SIMD'), new_cfg.get('SIMD')
+                pw_old, pw_new = cfg.get('parallel_window'), new_cfg.get('parallel_window')
+                
+                log_msg = f"[↑] {layer}:"
+                if pe_new != pe_old:
+                    log_msg += f" PE {pe_old}→{pe_new}"
+                if simd_new != simd_old:
+                    log_msg += f" SIMD {simd_old}→{simd_new}"
+                if pw_new != pw_old:
+                    log_msg += f" parallel_window {pw_old}→{pw_new}"
+                print(log_msg)
+                
             new_folding[layer] = new_cfg
-
+            
         return folding if not layers_modified else new_folding
 
     @staticmethod
-    def reset_folding(folding, onnx_path): 
-        """ 
-        Reseta uma configuração de folding para os menores valores válidos de PE e SIMD, 
-        com base nas restrições do FINN e nas propriedades extraídas de um modelo ONNX 
-        já convertido para camadas de hardware FINN. 
-        """ 
+    def reset_folding(folding, onnx_path, fixed_resources=None):
+        """
+        Reseta uma configuração de folding para os menores valores válidos (PE=1, SIMD=1),
+        mas aplica configurações de recursos fixas (ex: ram_style) se fornecidas.
+        """
         import copy
+        import onnx
+        import math
+        from onnx import helper
 
-        # --- Funções Auxiliares --- 
+        # --- Funções Auxiliares ---
+        def _get_hw_layer_features(path):
+            model = onnx.load(path)
+            feats = {}
+            for node in model.graph.node:
+                if node.op_type.startswith("MVAU"):
+                    attr = {a.name: helper.get_attribute_value(a) for a in node.attribute}
+                    mw = int(attr.get("MW", 0))
+                    mh = int(attr.get("MH", 0))
+                    feats[node.name] = {"MW": mw, "MH": mh}
+            return feats
 
-        def _get_hw_layer_features(path): 
-            """ 
-            Extrai as dimensões de hardware (MW para CHIN, MH para CHOUT) diretamente 
-            dos atributos dos nós de hardware do FINN. 
-            """ 
-            model = onnx.load(path) 
-            feats = {} 
-            for node in model.graph.node: 
-                if node.op_type.startswith("MVAU"): 
-                    attr = {a.name: helper.get_attribute_value(a) for a in node.attribute} 
-                    # Para MVAU, MW (Matrix Width) corresponde à dimensão de entrada (CHIN) 
-                    # e MH (Matrix Height) corresponde à dimensão de saída (CHOUT). 
-                    chin = int(attr.get("MW", 0)) 
-                    chout = int(attr.get("MH", 0)) 
-                    feats[node.name] = {"CHIN": chin, "CHOUT": chout} 
-            return feats 
+        def _get_min_valid_simd(mw):
+            if mw is None or mw <= 0: return 1
+            min_req_simd = math.ceil(mw / 1024.0)
+            for d in range(int(min_req_simd), mw + 1):
+                if mw % d == 0: return d
+            return mw
 
-        def _get_min_valid_pe(chout): 
-            """O menor PE válido é sempre 1.""" 
-            return 1 
+        # --- Lógica Principal ---
+        layer_features = _get_hw_layer_features(onnx_path)
+        new_folding = copy.deepcopy(folding)
 
-        def _get_min_valid_simd(chin): 
-            """Calcula o menor SIMD válido. Para MVAU, a regra é SIMD >= MW / 1024.""" 
-            if chin is None or chin <= 0: 
-                return 1 
-            # A regra para MVAU é SIMD >= MW/1024. O menor inteiro que satisfaz isso 
-            # é ceil(MW/1024). 
-            min_req_simd = math.ceil(chin / 1024.0) 
-            # Além disso, SIMD deve ser um divisor de MW. 
-            for d in range(int(min_req_simd), chin + 1): 
-                if chin % d == 0: 
-                    return d 
-            return chin 
-
-        # --- Lógica Principal --- 
-
-        layer_features = _get_hw_layer_features(onnx_path) 
-        new_folding = copy.deepcopy(folding) 
-
-        for node_name, features in layer_features.items(): 
-            if node_name in new_folding: 
-                config = new_folding[node_name] 
-                chin = features.get("CHIN") 
-                chout = features.get("CHOUT") 
-
-                # Reseta o PE usando MH como referência (CHOUT) 
-                if "PE" in config and chout is not None: 
-                    config["PE"] = _get_min_valid_pe(chout) 
-
-                # Reseta o SIMD usando MW como referência (CHIN) 
-                if "SIMD" in config and chin is not None: 
-                    config["SIMD"] = _get_min_valid_simd(chin) 
-                    
-        return new_folding 
-
+        # 1. Reseta PE e SIMD para os valores mínimos
+        for node_name, config in new_folding.items():
+            if "PE" in config: config["PE"] = 1
+            if "SIMD" in config: config["SIMD"] = 1
+            if "MVAU" in node_name and node_name in layer_features:
+                mw = layer_features[node_name].get("MW")
+                if "SIMD" in config and mw is not None:
+                    config["SIMD"] = _get_min_valid_simd(mw)
+        
+        # 2. Aplica as configurações de recursos fixas (NOVA LÓGICA)
+        if fixed_resources and isinstance(fixed_resources, dict):
+            print(f"[i] Aplicando configurações de recursos fixos: {fixed_resources}")
+            for node_name, config in new_folding.items():
+                if node_name == "Defaults": continue
+                # Itera sobre os tipos de OP definidos no JSON (ex: "MVAU")
+                for op_type_key, resource_config in fixed_resources.items():
+                    # Verifica se o nome do nó contém a chave (ex: "MVAU" em "MVAU_hls_0")
+                    if op_type_key in node_name:
+                        print(f"    -> Aplicando {resource_config} em {node_name}")
+                        config.update(resource_config)
+                        
+        return new_folding
 
     @staticmethod
     def get_exceeded_resources_flags(resource_diffs):
@@ -1339,7 +1359,11 @@ def get_finn_ready_model(model_info, build_dir):
             from brevitas_examples.bnn_pynq.models import model_with_cfg
             from brevitas_examples.bnn_pynq.extractor import ModelExtractor
             model_arch, _ = model_with_cfg(full_model_name, pretrained=False)
-            extractor = ModelExtractor(model=model_arch)
+            extractor = ModelExtractor(model=model_arch,
+                                       optimizer=None,
+                                       checkpoints_dir_path=None,
+                                       logger=None,
+                                       args=None)
             extractor.load_model(checkpoint_path=checkpoint_path)
             pytorch_model = extractor.model
         else:

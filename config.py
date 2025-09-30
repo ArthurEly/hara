@@ -158,7 +158,7 @@ BUILD_CONFIG = {
 
 # Parâmetros do loop de exploração HARA
 HARA_LOOP_CONFIG = {
-    'max_consecutive_errors': 5,
+    'max_consecutive_errors': 1,
     'max_runs_per_stage': -1, # -1 para ilimitado
     'modify_functions': [
         "modify_folding",

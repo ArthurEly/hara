@@ -1,12 +1,10 @@
 import os
 import json
 import time
-from datetime import datetime
-import torch
+import random
 
 # Importa as ferramentas e as configurações
 from utils.hw_utils import utils, get_finn_ready_model
-# Importa SatImgDataset para que torch.load consiga carregar o modelo
 from utils.ml_utils import SatImgDataset, load_pruned_model
 from config import (
     TARGET_RESOURCE_PERCENTAGES,
@@ -15,39 +13,135 @@ from config import (
 )
 
 class HardwareExplorer:
-    """
-    Gerencia a exploração de hardware (Fase 2) para encontrar a melhor
-    configuração de folding para um dado modelo ONNX, respeitando os
-    limites de recursos.
-    """
-    def __init__(self, build_dir, config, resource_limits, hara_loop_config):
-        # Armazena as configurações
+    def __init__(self, build_dir, config, resource_limits, hara_loop_config, simulation_mode=False, fixed_resources=None):
         self.base_build_dir = build_dir
         self.build_config = config
         self.resource_limits_max = resource_limits
         self.hara_loop_config = hara_loop_config
-        
-        # Inicializa o estado da exploração
         self.summary_file = os.path.join(self.base_build_dir, "hardware_summary.csv")
         self.run_number = 1
-        
-        # Estado que muda durante o loop
         self.last_valid_folding = None
         self.last_valid_hw_name = None
         self.last_valid_build_dir = None
         
+        # --- MODIFICADO ---
+        self.simulation_mode = simulation_mode
+        self.fixed_resources = fixed_resources if fixed_resources else {}
+        # --- FIM DA MODIFICAÇÃO ---
+
         print(f"HardwareExplorer inicializado. Os resultados serão salvos em: {self.base_build_dir}")
+        if self.simulation_mode:
+            print("[!] =================================================== [!]")
+            print("[!] HExplorer ATIVADO EM MODO DE SIMULAÇÃO (DRY RUN) [!]")
+            print("[!] NENHUM HARDWARE REAL SERÁ GERADO                  [!]")
+            print("[!] =================================================== [!]")
+
+    def _run_fake_build(self, onnx_model_path, hw_name, quant, topology_id, steps, folding_path=None, target_fps=None, resource_limits=None):
+        """
+        SIMULA um build do FINN, gerando os JSONs necessários e escrevendo
+        DIRETAMENTE no hardware_summary.csv sem criar um arquivo .rpt.
+        """
+        import csv
+        import datetime
+        
+        print(f"-> [SIMULAÇÃO DIRETA] Iniciando build FALSO para: {hw_name}")
+        time.sleep(random.uniform(1.0, 2.0))
+        
+        build_output_dir = os.path.join(self.base_build_dir, hw_name)
+        os.makedirs(os.path.join(build_output_dir, "report"), exist_ok=True)
+
+        input_folding = {}
+        if folding_path and os.path.exists(folding_path):
+            with open(folding_path, 'r') as f:
+                input_folding = json.load(f)
+        
+        with open(os.path.join(build_output_dir, "final_hw_config.json"), 'w') as f:
+            json.dump(input_folding, f, indent=4)
+        
+        total_parallelism = 1.0
+        for layer, config in input_folding.items():
+            if layer != "Defaults":
+                total_parallelism += config.get("PE", 1) * config.get("SIMD", 1)
+
+        # 1. Gera os dados de recursos sintéticos em um dicionário
+        base_luts = 15000 + (total_parallelism * 25)
+        fake_luts = min(self.resource_limits_max["Total LUTs"], int(base_luts * (1 + random.uniform(-0.05, 0.05))))
+        base_ffs = 20000 + (total_parallelism * 35)
+        fake_ffs = min(self.resource_limits_max["FFs"], int(base_ffs * (1 + random.uniform(-0.05, 0.05))))
+        base_bram = 15 + (total_parallelism * 0.05)
+        fake_bram_36k_equiv = min(self.resource_limits_max["BRAM (36k)"], base_bram * (1 + random.uniform(-0.05, 0.05)))
+        
+        fake_area_data = {
+            "Total LUTs": fake_luts, "Logic LUTs": int(fake_luts * 0.95),
+            "LUTRAMs": int(fake_luts * 0.05), "SRLs": int(fake_luts * 0.05),
+            "FFs": fake_ffs, "BRAM (36k)": round(fake_bram_36k_equiv, 1),
+            "DSP Blocks": 0
+        }
+
+        # 2. Gera os JSONs de performance sintéticos (necessários para o loop HARA e para o CSV)
+        fake_fps = 10 + total_parallelism * 0.5 * (1 + random.uniform(-0.05, 0.05))
+        perf_report = {"estimated_throughput_fps": fake_fps, "max_cycles_node_name": "MVAU_hls_1_fake"}
+        with open(os.path.join(build_output_dir, "report", "estimate_network_performance.json"), 'w') as f:
+            json.dump(perf_report, f)
+        
+        fake_cycles = {name: int(random.uniform(1000, 50000)) for name in input_folding.keys() if name != "Defaults"}
+        if fake_cycles:
+            bottleneck_layer = random.choice(list(fake_cycles.keys()))
+            fake_cycles[bottleneck_layer] = 100000
+        with open(os.path.join(build_output_dir, "report", "estimate_layer_cycles.json"), 'w') as f:
+            json.dump(fake_cycles, f)
+            
+        # 3. Verifica o status e monta a linha completa do CSV
+        resource_diffs = utils.check_resource_usage(fake_area_data, resource_limits or {})
+        exceeded = utils.raise_if_exceeds_limits(resource_diffs)
+        status = "resources_exceeded" if exceeded else "success"
+        
+        summary_row = {
+            "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "hw_name": hw_name,
+            "status": status,
+            "duration_in_seconds": round(random.uniform(1.0, 2.0), 2),
+            "folding_summary": json.dumps(input_folding),
+            "folding_diff": json.dumps({}), # Simplificado para o modo fake
+            "build_dir": build_output_dir,
+            "resource_limits": json.dumps(resource_limits or {}),
+            **fake_area_data, # Adiciona todos os dados de área ao dicionário
+            **perf_report
+        }
+        
+        # 4. Escreve a linha diretamente no hardware_summary.csv
+        field_order = [
+            "date", "hw_name", "status", "duration_in_seconds", "folding_summary",
+            "folding_diff", "build_dir", "resource_limits", "Total LUTs", "Logic LUTs",
+            "LUTRAMs", "SRLs", "FFs", "BRAM (36k)", "DSP Blocks",
+            "estimated_throughput_fps", "max_cycles_node_name"
+        ]
+        file_exists = os.path.isfile(self.summary_file)
+        with open(self.summary_file, 'a', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=field_order)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(summary_row)
+
+        if status == "success": print(f"[✓] [SIMULAÇÃO] Build {hw_name} concluído. Sumário salvo.")
+        else: print(f"[!] [SIMULAÇÃO] Build {hw_name} concluído (recursos excedidos). Sumário salvo.")
+        
+        # Retorna o dicionário de status esperado pelo loop HARA
+        return {"status": status, "folding": input_folding, "hw_name": hw_name, "build_dir": build_output_dir}
 
     def _run_single_build(self, onnx_model_path, hw_name, quant, topology_id, steps, folding_path=None, target_fps=None, resource_limits=None):
         """
-        Método centralizado que executa um único build de hardware.
-        Agora também passa o caminho do modelo ONNX para o script de build.
+        Método "roteador": decide se executa o build real do FINN ou a simulação.
         """
-        print(f"-> Iniciando build para: {hw_name} usando {os.path.basename(onnx_model_path)}")
+        if self.simulation_mode:
+            return self._run_fake_build(onnx_model_path, hw_name, quant, topology_id, steps, folding_path, target_fps, resource_limits)
+
+        # --- O CÓDIGO DO BUILD REAL PERMANECE O MESMO ---
+        print(f"-> [REAL] Iniciando build para: {hw_name} usando {os.path.basename(onnx_model_path)}")
         
         args = [
             "python3", "run_build.py",
-            "--model_path", str(onnx_model_path), # <--- NOVA FLAG
+            "--model_path", str(onnx_model_path),
             "--build_dir", str(self.base_build_dir),
             "--topology", str(topology_id),
             "--quant", str(quant),
@@ -97,33 +191,94 @@ class HardwareExplorer:
 
     def _perform_first_run(self, onnx_model_path, topology_id, quant):
         """
-        Executa o build inicial para um dado ONNX para obter um baseline de folding.
+        Executa o build inicial para obter um baseline de hardware.
+        AGORA inclui um loop de 5 iterações para balancear o uso de BRAM.
         """
-        # ... (a primeira parte da função permanece a mesma)
         print(f"\n🚀 [FIRST RUN] Gerando baseline de hardware para o modelo fornecido...")
         
-        cfg = self.build_config['first_run_estimate']
-        hw_name_est = utils.get_hardware_config_name(topology_id, quant, cfg['target_fps'], "_run0_estimate")
-        result = self._run_single_build(onnx_model_path, hw_name_est, quant, topology_id, cfg['steps'], target_fps=cfg['target_fps'])
+        # 1. Obtém a configuração de folding mais sequencial possível (reset_folding)
+        cfg_est = self.build_config['first_run_estimate']
+        hw_name_est = utils.get_hardware_config_name(topology_id, quant, cfg_est['target_fps'], "_run0_estimate")
+        result_est = self._run_single_build(onnx_model_path, hw_name_est, quant, topology_id, cfg_est['steps'], target_fps=cfg_est['target_fps'])
 
-        if result.get('status') != 'success':
+        if result_est.get('status') != 'success':
             print("[✗] Falha ao gerar a estimativa inicial de folding.")
             return None, None
 
-        initial_folding = utils.read_folding_config(result['build_dir'])
+        initial_folding = utils.read_folding_config(result_est['build_dir'])
         intermediate_onnx_path = os.path.join(
-            result['build_dir'], "intermediate_models", "step_generate_estimate_reports.onnx"
+            result_est['build_dir'], "intermediate_models", "step_generate_estimate_reports.onnx"
         )
         if not os.path.exists(intermediate_onnx_path):
-            print(f"[✗] ERRO CRÍTICO: O modelo ONNX intermediário não foi encontrado.")
-            return None, None
+            # Lógica de fallback para o modo de simulação
+            if self.simulation_mode:
+                intermediate_onnx_path = onnx_model_path
+            else:
+                print(f"[✗] ERRO CRÍTICO: O modelo ONNX intermediário não foi encontrado.")
+                return None, None
         
-        reset_folding = utils.reset_folding(initial_folding, intermediate_onnx_path)
-        
-        hw_name_final = utils.get_hardware_config_name(topology_id, quant, None, "_run0_final")
+        # --- MODIFICADO ---
+        # Passa as configurações de recursos fixos para a função reset_folding
+        current_folding = utils.reset_folding(
+            initial_folding, intermediate_onnx_path, fixed_resources=self.fixed_resources
+        )
+        # --- FIM DA MODIFICAÇÃO ---
+
+        last_build_dir = result_est['build_dir']
+
+        # --- NOVO: LOOP DE BALANCEAMENTO DE BRAM ---
+        print("\n--- Iniciando 5 iterações de balanceamento para reduzir BRAM ---")
+        num_balance_runs = 19
+        for i in range(num_balance_runs):
+            print(f"-> Executando iteração de balanceamento #{i + 1}/{num_balance_runs}...")
+            
+            # Prepara os inputs para a função de modificação
+            onnx_path_loop = os.path.join(last_build_dir, "intermediate_models/step_generate_estimate_reports.onnx")
+            cycles_path = os.path.join(last_build_dir, "report/estimate_layer_cycles.json")
+            if not os.path.exists(onnx_path_loop) or not os.path.exists(cycles_path):
+                if self.simulation_mode: # Fallback para simulação
+                    onnx_path_loop = onnx_model_path 
+                else:
+                    print("[!] Arquivos da última execução não encontrados. Interrompendo balanceamento.")
+                    break
+            
+            # Carrega os ciclos apenas se o arquivo existir
+            estimate_layer_cycles = {}
+            if os.path.exists(cycles_path):
+                with open(cycles_path, 'r') as f: estimate_layer_cycles = json.load(f)
+
+            # Aumenta o paralelismo em um passo
+            new_folding = utils.modify_folding(current_folding, onnx_path_loop, estimate_layer_cycles)
+            
+            if new_folding == current_folding:
+                print("  -> Design já estável. Interrompendo loop de balanceamento.")
+                break
+            
+            current_folding = new_folding
+            
+            # Executa um build de ESTIMATIVA (rápido) para atualizar os dados para a próxima iteração
+            hw_name_balance = f"_run0_balance_iter{i+1}"
+            folding_path_balance = os.path.join(self.base_build_dir, f"{hw_name_balance}.json")
+            with open(folding_path_balance, "w") as f: json.dump(current_folding, f, indent=4)
+            
+            iter_build_dir = self._run_single_build(
+                onnx_model_path, hw_name_balance, quant, topology_id, 
+                cfg_est['steps'], folding_path=folding_path_balance
+            )['build_dir']
+
+            if not iter_build_dir:
+                print("[✗] Falha na iteração de balanceamento. Usando a última configuração válida.")
+                break
+            
+            last_build_dir = iter_build_dir
+        # --- FIM DO LOOP ---
+
+        print("\n--- Executando build final do baseline com a configuração balanceada ---")
+        balanced_baseline_folding = current_folding
+        hw_name_final = utils.get_hardware_config_name(topology_id, quant, None, "_run0_final_balanced")
         folding_path = os.path.join(self.base_build_dir, f"{hw_name_final}_folding_reset.json")
         with open(folding_path, "w") as f:
-            json.dump(reset_folding, f, indent=4)
+            json.dump(balanced_baseline_folding, f, indent=4)
             
         cfg_final = self.build_config['first_run_build']
         result_final = self._run_single_build(
@@ -132,47 +287,12 @@ class HardwareExplorer:
         )
 
         if result_final.get('status') == 'success':
-            print(f"[✓] Baseline de hardware gerado com sucesso: {hw_name_final}")
+            print(f"[✓] Baseline de hardware balanceado gerado com sucesso: {hw_name_final}")
             return result_final['folding'], result_final['hw_name']
         else:
-            # --- LÓGICA DE TENTATIVA E ERRO ADICIONADA AQUI ---
-            print("[✗] Falha ao construir o hardware de baseline.")
-            print("  -> Tentando realizar trade-off automático de recursos (BRAM -> LUTRAM)...")
-
-            failed_build_dir = result_final.get('build_dir')
-            if not failed_build_dir:
-                print("  -> [!] Não foi possível encontrar o diretório do build que falhou. Abortando.")
-                return None, None
-
-            # Chama a nova função para tentar modificar o folding
-            modified_folding, was_modified = utils.attempt_resource_tradeoff(
-                current_folding=reset_folding,
-                failed_build_dir=failed_build_dir,
-                resource_limits=self.resource_limits_max
-            )
-
-            if was_modified:
-                print("  -> [✓] Trade-off aplicado. Tentando o build novamente com a nova configuração.")
-                hw_name_retry = utils.get_hardware_config_name(topology_id, quant, None, "_run0_final_retry")
-                folding_path_retry = os.path.join(self.base_build_dir, f"{hw_name_retry}_folding_tradeoff.json")
-                with open(folding_path_retry, "w") as f:
-                    json.dump(modified_folding, f, indent=4)
-
-                # Executa o build novamente com o folding modificado
-                result_retry = self._run_single_build(
-                    onnx_model_path, hw_name_retry, quant, topology_id, cfg_final['steps'],
-                    folding_path=folding_path_retry, resource_limits=self.resource_limits_max
-                )
-
-                if result_retry.get('status') == 'success':
-                    print(f"[✓] Baseline de hardware gerado com sucesso na segunda tentativa: {hw_name_retry}")
-                    return result_retry['folding'], result_retry['hw_name']
-                else:
-                    print("[✗] Falha ao construir o hardware mesmo após o trade-off.")
-                    return None, None
-            else:
-                print("  -> [!] Nenhum trade-off de BRAM -> LUTRAM pôde ser aplicado. A falha é definitiva.")
-                return None, None
+            print("[✗] Falha ao construir o hardware de baseline mesmo após o balanceamento.")
+            # A lógica de trade-off BRAM->LUTRAM pode ser chamada aqui como um último recurso, se desejado.
+            return None, None
 
     def _select_best_strategy(self, modify_func, folding_input, onnx_path, estimate_cycles, base_hw_name, quant, topology_id):
         """Testa estratégias de modificação (PE, SIMD, BOTH) e retorna a melhor."""
@@ -191,6 +311,8 @@ class HardwareExplorer:
     def _perform_hara_loop(self, onnx_model_path, quant, topology_id):
         """Executa o loop principal de exploração HARA."""
         
+        max_runs_per_stage = self.hara_loop_config.get('max_runs_per_stage', -1)
+        
         for modify_func_name in self.hara_loop_config['modify_functions']:
             modify_func = getattr(utils, modify_func_name)
             print(f"\n🔧 [HARA] Usando a estratégia de modificação: {modify_func_name}")
@@ -200,9 +322,14 @@ class HardwareExplorer:
                 print(f"\n🎯 [HARA] Estágio com {percent*100:.0f}% dos recursos. Limites: {current_limits}")
                 
                 consecutive_errors = 0
+                runs_in_stage = 0
+                
                 max_errors = self.hara_loop_config['max_consecutive_errors']
 
                 while consecutive_errors < max_errors:
+                    if max_runs_per_stage != -1 and runs_in_stage >= max_runs_per_stage:
+                        print(f"[i] Limite de {max_runs_per_stage} execuções por estágio atingido. Passando para o próximo estágio.")
+                        break
                     # Carrega os dados da última execução válida
                     last_folding = self.last_valid_folding
                     last_build_dir = self.last_valid_build_dir
@@ -245,6 +372,7 @@ class HardwareExplorer:
                         consecutive_errors += 1
                         print(f"[!] Falha no build. Erros consecutivos: {consecutive_errors}/{max_errors}")
 
+                    runs_in_stage += 1
                     self.run_number += 1
 
     def run_exploration(self, model_info):

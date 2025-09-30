@@ -7,15 +7,16 @@ CIFAR10:
 
 SOYBEAN:
   loader: "brevitas_example"
+  source: "local_checkpoint" 
   model_name: "SOYBEAN_CNV"
-  checkpoint_path: "hara/models/SOYBEAN_CNV_2W2A_2W2A_20250905_175846/checkpoints/best.tar"
+  checkpoint_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SOYBEAN_CNV_2W2A_2W2A_20250905_175846/checkpoints/best.tar"
   topology_id: "SOYBEAN_CNV"
   quant: 2 
 
 SAT6_T2:
   loader: "hara_internal"
   source: "local_file"
-  model_path: "hw/builds/run_2025-09-07_01-38-02/pytorch_models/SAT6_T2w4a4_final.pth"
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/hw/builds/run_2025-09-07_01-38-02/pytorch_models/SAT6_T2w4a4_final.pth"
   topology_id: "SAT6_T2"
   quant: 4
 
