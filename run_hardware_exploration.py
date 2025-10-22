@@ -3,7 +3,7 @@ import json # <-- ADICIONADO
 from hardware_explorer import HardwareExplorer
 from config import BUILD_CONFIG, HARA_LOOP_CONFIG
 
-def start_exploration(build_dir, model_info, resource_limits, simulation_mode=False):
+def start_exploration(build_dir, model_info, resource_limits, simulation_mode=False, fpga_part="xc7z020clg400-1"):    
     """
     Ponto de entrada para a exploração de hardware.
     Agora lê o arquivo de requisição para obter configurações de recursos fixos
@@ -34,7 +34,8 @@ def start_exploration(build_dir, model_info, resource_limits, simulation_mode=Fa
         resource_limits=resource_limits,
         hara_loop_config=HARA_LOOP_CONFIG,
         simulation_mode=simulation_mode,
-        fixed_resources=fixed_resources # <-- Passa a nova configuração
+        fixed_resources=fixed_resources,
+        fpga_part=fpga_part 
     )
 
     print("\n--- INICIANDO MÓDULO DE EXPLORAÇÃO DE HARDWARE ---")

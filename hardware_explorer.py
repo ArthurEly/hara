@@ -13,7 +13,7 @@ from config import (
 )
 
 class HardwareExplorer:
-    def __init__(self, build_dir, config, resource_limits, hara_loop_config, simulation_mode=False, fixed_resources=None):
+    def __init__(self, build_dir, config, resource_limits, hara_loop_config, simulation_mode=False, fixed_resources=None, fpga_part="xc7z020clg400-1"):
         self.base_build_dir = build_dir
         self.build_config = config
         self.resource_limits_max = resource_limits
@@ -27,6 +27,7 @@ class HardwareExplorer:
         # --- MODIFICADO ---
         self.simulation_mode = simulation_mode
         self.fixed_resources = fixed_resources if fixed_resources else {}
+        self.fpga_part = fpga_part # <-- Armazena o fpga_part
         # --- FIM DA MODIFICAÇÃO ---
 
         print(f"HardwareExplorer inicializado. Os resultados serão salvos em: {self.base_build_dir}")
@@ -140,13 +141,14 @@ class HardwareExplorer:
         print(f"-> [REAL] Iniciando build para: {hw_name} usando {os.path.basename(onnx_model_path)}")
         
         args = [
-            "python3", "run_build.py",
+            "python3", "./hara/run_build.py",
             "--model_path", str(onnx_model_path),
             "--build_dir", str(self.base_build_dir),
             "--topology", str(topology_id),
             "--quant", str(quant),
             "--steps", json.dumps(steps),
             "--hw_name", hw_name,
+            "--fpga-part", self.fpga_part,             
             "--folding_file", str(folding_path) if folding_path else "",
             "--target_fps", str(target_fps) if target_fps else "None",
             "--run", str(self.run_number)
@@ -199,6 +201,7 @@ class HardwareExplorer:
         # 1. Obtém a configuração de folding mais sequencial possível (reset_folding)
         cfg_est = self.build_config['first_run_estimate']
         hw_name_est = utils.get_hardware_config_name(topology_id, quant, cfg_est['target_fps'], "_run0_estimate")
+        print(f"-> Executando build de ESTIMATIVA inicial: {hw_name_est}")
         result_est = self._run_single_build(onnx_model_path, hw_name_est, quant, topology_id, cfg_est['steps'], target_fps=cfg_est['target_fps'])
 
         if result_est.get('status') != 'success':
@@ -227,9 +230,9 @@ class HardwareExplorer:
         last_build_dir = result_est['build_dir']
 
         # --- NOVO: LOOP DE BALANCEAMENTO DE BRAM ---
-        print("\n--- Iniciando 5 iterações de balanceamento para reduzir BRAM ---")
-        num_balance_runs = 19
+        num_balance_runs = 45
         for i in range(num_balance_runs):
+            print(f"\n--- Iniciando {num_balance_runs} iterações de balanceamento para reduzir BRAM ---")
             print(f"-> Executando iteração de balanceamento #{i + 1}/{num_balance_runs}...")
             
             # Prepara os inputs para a função de modificação

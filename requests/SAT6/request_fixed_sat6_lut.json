@@ -1,6 +1,7 @@
 {
-  "model_id": "MNIST",
+  "model_id": "SAT6_T2W4",
   "simulation_mode": false,
+  "fpga_part": "xc7a200tsbg484-1",
   "area_constraints": {
     "Total LUTs": 134600,
     "FFs": 269200,
@@ -8,7 +9,11 @@
     "DSP Blocks": 740
   },
   "fixed_resources": {
-    "MVAU":{
+    "MVAU_hls":{
+      "ram_style": "block",
+      "resType": "lut"
+    },
+    "MVAU_rtl":{
       "ram_style": "block",
       "resType": "dsp"
     }

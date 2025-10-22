@@ -2,10 +2,10 @@
   "model_id": "MNIST",
   "simulation_mode": false,
   "area_constraints": {
-    "Total LUTs": 134600,
-    "FFs": 269200,
-    "BRAM (36k)": 365,
-    "DSP Blocks": 740
+    "Total LUTs": 3306,
+    "FFs": 3049,
+    "BRAM (36k)": 12,
+    "DSP Blocks": 1
   },
   "fixed_resources": {
     "MVAU":{

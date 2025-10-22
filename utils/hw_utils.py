@@ -983,7 +983,7 @@ class utils():
         return full_output
     
     @staticmethod
-    def build_hardware(model_path, build_dir, hw_name, steps, folding_file=None, target_fps=None, **kwargs):
+    def build_hardware(model_path, build_dir, hw_name, fpga_part, steps, folding_file=None, target_fps=None, **kwargs):
         """
         Executa o fluxo de build de hardware do FINN para um modelo ONNX já processado.
 
@@ -1021,7 +1021,7 @@ class utils():
                 target_fps                  = target_fps_local,
                 synth_clk_period_ns         = 10.0,
                 #board                       = "Pynq-Z1",
-                fpga_part                   = "xc7a200tsbg484-1",
+                fpga_part                   = fpga_part,
                 split_large_fifos           = True,
                 shell_flow_type             = build_cfg.ShellFlowType.VIVADO_ZYNQ,
                 generate_outputs            = [

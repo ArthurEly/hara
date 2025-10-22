@@ -10,14 +10,14 @@ from cnns_classes import t1_quantizedCNN, t2_quantizedCNN
 CLASSIFICATION_CONSTRAINTS = {
     'enabled': True,  # Habilita ou desabilita a Fase 1
     'primary_metric': 'accuracy',  # pode ser 'accuracy', 'f1_score', 'precision', 'recall'
-    'target_value': 0.9, # Ex: acurácia de 92%
+    'target_value': 0.4, # Ex: acurácia de 92%
     'metric_average_mode': 'macro', # 'macro', 'micro', 'weighted' para F1/precision/recall
     'prioritize_class': None # Ex: 2 (prioriza métricas para a classe 2)
 }
 
 # --- Configurações de Treino e Pruning ---
 TRAINING_CONFIG = {
-    'epochs_per_bitwidth': 50,
+    'epochs_per_bitwidth': 2,
     'patience_epochs': 15,
     'learning_rate': 3e-5,
     'batch_size': 512,
@@ -49,8 +49,8 @@ TOPOLOGY_MAP = {
 # Define as topologias e os níveis de quantização a serem explorados.
 TOPOLOGIES_TO_EXPLORE = [
     {
-        'id': "SAT6_T2",
-        'tp_class': TOPOLOGY_MAP["SAT6_T2"],
+        'id': "SAT6_T1",
+        'tp_class': TOPOLOGY_MAP["SAT6_T1"],
         'quant_strategy': {
             # [CORRIGIDO] O método agora é 'sweep'
             'method': 'sweep',

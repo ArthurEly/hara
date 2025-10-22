@@ -63,19 +63,32 @@ def generate_arch_config(model):
             config[f"{name}_out"] = module.out_features
     return config
 
-def load_pruned_model(model_pth_path):
+def load_pruned_model(model_path):
     """
-    Carrega um modelo podado a partir de um par de arquivos .yaml (arquitetura) e .pth (pesos).
+    Carrega um modelo podado a partir de um par de arquivos .yaml (arquitetura) 
+    e um arquivo de pesos (.pth ou .pt).
     """
-    # --- CORREÇÃO APLICADA ---
-    # Remove a extensão do caminho de entrada para obter o nome base do arquivo.
-    base_path, _ = os.path.splitext(model_pth_path)
+    # 1. Obter o caminho base para encontrar os arquivos .yaml, .pth e .pt
+    base_path, _ = os.path.splitext(model_path)
     
-    # Monta os caminhos corretos para os arquivos .yaml e .pth.
     yaml_path = f"{base_path}.yaml"
-    pth_path = f"{base_path}.pth" # Garante que o caminho .pth está correto
-    
-    # 1. Carrega a configuração da arquitetura do arquivo YAML
+    pth_path = f"{base_path}.pth"
+    pt_path = f"{base_path}.pt"
+
+    # 2. Verificar a existência do arquivo de arquitetura
+    if not os.path.exists(yaml_path):
+        raise FileNotFoundError(f"Arquivo de arquitetura YAML não encontrado: {yaml_path}")
+
+    # 3. Encontrar o arquivo de pesos, priorizando .pth e depois tentando .pt
+    if os.path.exists(pth_path):
+        weights_path = pth_path
+    elif os.path.exists(pt_path):
+        weights_path = pt_path
+    else:
+        # Se nenhum for encontrado, lança um erro claro
+        raise FileNotFoundError(f"Nenhum arquivo de pesos (.pth ou .pt) encontrado para o caminho base: {base_path}")
+
+    # 4. Carrega a configuração da arquitetura do arquivo YAML (lógica original)
     with open(yaml_path, 'r') as f:
         metadata = yaml.safe_load(f)
         
@@ -84,7 +97,7 @@ def load_pruned_model(model_pth_path):
     w_bits = metadata['bit_widths']['weight']
     a_bits = metadata['bit_widths']['activation']
             
-    # 3. Obtém a classe do modelo e instancia com a config completa
+    # 5. Obtém a classe do modelo e instancia com a config completa (lógica original)
     model_class = TOPOLOGY_MAP.get(topology_id)
     if not model_class:
         raise ValueError(f"ID de topologia '{topology_id}' não encontrado.")
@@ -95,11 +108,11 @@ def load_pruned_model(model_pth_path):
         arch_config=arch_config
     )
     
-    # 4. Carrega os pesos do arquivo .pth
-    state_dict = torch.load(pth_path, map_location=torch.device('cpu'))
+    # 6. Carrega os pesos do arquivo encontrado (weights_path)
+    state_dict = torch.load(weights_path, map_location=torch.device('cpu'))
     model.load_state_dict(state_dict)
     
-    print(f"Modelo da topologia {topology_id} com {w_bits}w{a_bits}a carregado com sucesso.")
+    print(f"Modelo da topologia {topology_id} com {w_bits}w{a_bits}a carregado com sucesso de '{os.path.basename(weights_path)}'.")
     return model
 
 # Classe SatImgDataset precisa ser definida aqui para que o pickle.load funcione corretamente

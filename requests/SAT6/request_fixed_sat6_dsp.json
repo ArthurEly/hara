@@ -1,5 +1,5 @@
 {
-  "model_id": "MNIST",
+  "model_id": "SAT6_T2W4",
   "simulation_mode": false,
   "area_constraints": {
     "Total LUTs": 134600,

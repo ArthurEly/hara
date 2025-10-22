@@ -9,6 +9,7 @@ parser.add_argument("--build_dir", type=str, required=True)
 parser.add_argument("--hw_name", type=str, required=True)
 parser.add_argument("--model_path", type=str, required=True) 
 parser.add_argument("--steps", type=str, required=True)
+parser.add_argument("--fpga-part", type=str, required=True, help="Nome da FPGA part (ex: xc7z020clg400-1).")
 
 # Argumentos que se tornaram opcionais ou de controle
 parser.add_argument("--folding_file", type=str, default=None)
@@ -34,5 +35,6 @@ utils.build_hardware(
     hw_name=args.hw_name,
     steps=steps,
     folding_file=folding_file_val,
-    target_fps=target_fps_val
+    target_fps=target_fps_val,
+    fpga_part=args.fpga_part
 )

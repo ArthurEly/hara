@@ -1,0 +1,9 @@
+arch_config:
+    conv1_out: 20
+    conv2_out: 8
+    fc1_out: 6
+bit_widths:
+    activation: 8
+    weight: 8
+model_source: hara_internal
+topology_id: SAT6_T1
