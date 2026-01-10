@@ -1,0 +1,295 @@
+arthurely@finn_dev_arthurely:/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq$ BREVITAS_JIT=1 python3 bnn_pynq_train.py --evaluate --network SOYBEAN_CNV_1W1A --resume experiments/SOYBEAN_CNV_1W1A_1W1A_20251127_184458/checkpoints/best.tar 
+/usr/local/lib/python3.10/dist-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
+  warnings.warn("TorchScript will treat type annotations of Tensor "
+Processamento concluído e dados salvos como arrays NumPy.
+Loading model checkpoint at: /home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/SOYBEAN_CNV_1W1A_1W1A_20251127_184458/checkpoints/best.tar
+/usr/local/lib/python3.10/dist-packages/torch/_tensor.py:1255: UserWarning: Named tensors and all their associated APIs are an experimental feature and subject to change. Please do not use them for anything important until they are released as stable. (Triggered internally at ../c10/core/TensorImpl.h:1758.)
+  return super(Tensor, self).rename(names)
+/usr/local/lib/python3.10/dist-packages/torch/nn/modules/conv.py:459: UserWarning: Defining your `__torch_function__` as a plain method is deprecated and will be an error in future, please define it as a classmethod. (Triggered internally at ../torch/csrc/utils/python_arg_parser.cpp:350.)
+  return F.conv2d(input, weight, bias, self.stride,
+/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas/nn/quant_linear.py:69: UserWarning: Defining your `__torch_function__` as a plain method is deprecated and will be an error in future, please define it as a classmethod. (Triggered internally at ../torch/csrc/utils/python_arg_parser.cpp:350.)
+  output_tensor = linear(x, quant_weight, quant_bias)
+2025-11-29 23:33:47,548 Test: [0/60]	Model Time 0.706 (0.706)	Loss Time 0.000 (0.000)	Loss 0.0528 (0.0528)	Prec@1 93.750 (93.750)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,634 Test: [1/60]	Model Time 0.082 (0.394)	Loss Time 0.000 (0.000)	Loss 0.0036 (0.0282)	Prec@1 100.000 (96.875)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,648 Test: [2/60]	Model Time 0.010 (0.266)	Loss Time 0.000 (0.000)	Loss 0.0032 (0.0199)	Prec@1 100.000 (97.917)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,662 Test: [3/60]	Model Time 0.011 (0.203)	Loss Time 0.000 (0.000)	Loss 0.0649 (0.0311)	Prec@1 90.625 (96.094)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,676 Test: [4/60]	Model Time 0.011 (0.164)	Loss Time 0.000 (0.000)	Loss 0.0670 (0.0383)	Prec@1 93.750 (95.625)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,691 Test: [5/60]	Model Time 0.011 (0.139)	Loss Time 0.000 (0.000)	Loss 0.0189 (0.0351)	Prec@1 100.000 (96.354)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,705 Test: [6/60]	Model Time 0.011 (0.121)	Loss Time 0.000 (0.000)	Loss 0.0580 (0.0384)	Prec@1 93.750 (95.982)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,720 Test: [7/60]	Model Time 0.012 (0.107)	Loss Time 0.000 (0.000)	Loss 0.0602 (0.0411)	Prec@1 96.875 (96.094)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,735 Test: [8/60]	Model Time 0.011 (0.096)	Loss Time 0.000 (0.000)	Loss 0.0518 (0.0423)	Prec@1 96.875 (96.181)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,750 Test: [9/60]	Model Time 0.012 (0.088)	Loss Time 0.000 (0.000)	Loss 0.0774 (0.0458)	Prec@1 93.750 (95.938)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,764 Test: [10/60]	Model Time 0.011 (0.081)	Loss Time 0.000 (0.000)	Loss 0.1716 (0.0572)	Prec@1 87.500 (95.170)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,779 Test: [11/60]	Model Time 0.012 (0.075)	Loss Time 0.000 (0.000)	Loss 0.1024 (0.0610)	Prec@1 93.750 (95.052)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,793 Test: [12/60]	Model Time 0.011 (0.070)	Loss Time 0.000 (0.000)	Loss 0.1720 (0.0695)	Prec@1 84.375 (94.231)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,810 Test: [13/60]	Model Time 0.013 (0.066)	Loss Time 0.000 (0.000)	Loss 0.0656 (0.0693)	Prec@1 93.750 (94.196)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,824 Test: [14/60]	Model Time 0.011 (0.063)	Loss Time 0.000 (0.000)	Loss 0.0151 (0.0656)	Prec@1 100.000 (94.583)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,838 Test: [15/60]	Model Time 0.011 (0.059)	Loss Time 0.000 (0.000)	Loss 0.0511 (0.0647)	Prec@1 90.625 (94.336)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,853 Test: [16/60]	Model Time 0.011 (0.057)	Loss Time 0.000 (0.000)	Loss 0.1052 (0.0671)	Prec@1 90.625 (94.118)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,868 Test: [17/60]	Model Time 0.012 (0.054)	Loss Time 0.000 (0.000)	Loss 0.0151 (0.0642)	Prec@1 100.000 (94.444)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,883 Test: [18/60]	Model Time 0.012 (0.052)	Loss Time 0.000 (0.000)	Loss 0.0752 (0.0648)	Prec@1 93.750 (94.408)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,897 Test: [19/60]	Model Time 0.011 (0.050)	Loss Time 0.000 (0.000)	Loss 0.0510 (0.0641)	Prec@1 96.875 (94.531)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,912 Test: [20/60]	Model Time 0.012 (0.048)	Loss Time 0.000 (0.000)	Loss 0.0503 (0.0635)	Prec@1 96.875 (94.643)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,926 Test: [21/60]	Model Time 0.011 (0.046)	Loss Time 0.000 (0.000)	Loss 0.0849 (0.0644)	Prec@1 90.625 (94.460)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,942 Test: [22/60]	Model Time 0.013 (0.045)	Loss Time 0.000 (0.000)	Loss 0.0460 (0.0636)	Prec@1 96.875 (94.565)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,957 Test: [23/60]	Model Time 0.011 (0.043)	Loss Time 0.000 (0.000)	Loss 0.0395 (0.0626)	Prec@1 96.875 (94.661)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,972 Test: [24/60]	Model Time 0.012 (0.042)	Loss Time 0.000 (0.000)	Loss 0.0927 (0.0638)	Prec@1 93.750 (94.625)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:47,985 Test: [25/60]	Model Time 0.010 (0.041)	Loss Time 0.000 (0.000)	Loss 0.0762 (0.0643)	Prec@1 93.750 (94.591)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,001 Test: [26/60]	Model Time 0.012 (0.040)	Loss Time 0.000 (0.000)	Loss 0.0699 (0.0645)	Prec@1 93.750 (94.560)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,015 Test: [27/60]	Model Time 0.011 (0.039)	Loss Time 0.000 (0.000)	Loss 0.0663 (0.0646)	Prec@1 93.750 (94.531)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,029 Test: [28/60]	Model Time 0.011 (0.038)	Loss Time 0.000 (0.000)	Loss 0.0793 (0.0651)	Prec@1 93.750 (94.504)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,042 Test: [29/60]	Model Time 0.010 (0.037)	Loss Time 0.000 (0.000)	Loss 0.1091 (0.0665)	Prec@1 93.750 (94.479)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,058 Test: [30/60]	Model Time 0.012 (0.036)	Loss Time 0.000 (0.000)	Loss 0.0899 (0.0673)	Prec@1 93.750 (94.456)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,071 Test: [31/60]	Model Time 0.011 (0.035)	Loss Time 0.000 (0.000)	Loss 0.0284 (0.0661)	Prec@1 96.875 (94.531)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,086 Test: [32/60]	Model Time 0.011 (0.035)	Loss Time 0.000 (0.000)	Loss 0.0114 (0.0644)	Prec@1 100.000 (94.697)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,099 Test: [33/60]	Model Time 0.010 (0.034)	Loss Time 0.000 (0.000)	Loss 0.0174 (0.0630)	Prec@1 96.875 (94.761)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,114 Test: [34/60]	Model Time 0.012 (0.033)	Loss Time 0.000 (0.000)	Loss 0.0391 (0.0624)	Prec@1 93.750 (94.732)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,128 Test: [35/60]	Model Time 0.011 (0.033)	Loss Time 0.000 (0.000)	Loss 0.1655 (0.0652)	Prec@1 87.500 (94.531)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,143 Test: [36/60]	Model Time 0.012 (0.032)	Loss Time 0.000 (0.000)	Loss 0.0916 (0.0659)	Prec@1 93.750 (94.510)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,157 Test: [37/60]	Model Time 0.011 (0.032)	Loss Time 0.000 (0.000)	Loss 0.1117 (0.0671)	Prec@1 93.750 (94.490)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,171 Test: [38/60]	Model Time 0.011 (0.031)	Loss Time 0.000 (0.000)	Loss 0.0189 (0.0659)	Prec@1 100.000 (94.631)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,185 Test: [39/60]	Model Time 0.010 (0.030)	Loss Time 0.000 (0.000)	Loss 0.0266 (0.0649)	Prec@1 96.875 (94.688)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,199 Test: [40/60]	Model Time 0.011 (0.030)	Loss Time 0.000 (0.000)	Loss 0.1182 (0.0662)	Prec@1 90.625 (94.588)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,212 Test: [41/60]	Model Time 0.011 (0.030)	Loss Time 0.000 (0.000)	Loss 0.0605 (0.0661)	Prec@1 96.875 (94.643)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,226 Test: [42/60]	Model Time 0.011 (0.029)	Loss Time 0.000 (0.000)	Loss 0.0060 (0.0647)	Prec@1 100.000 (94.767)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,241 Test: [43/60]	Model Time 0.011 (0.029)	Loss Time 0.000 (0.000)	Loss 0.1148 (0.0658)	Prec@1 90.625 (94.673)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,255 Test: [44/60]	Model Time 0.011 (0.028)	Loss Time 0.000 (0.000)	Loss 0.0736 (0.0660)	Prec@1 93.750 (94.653)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,269 Test: [45/60]	Model Time 0.011 (0.028)	Loss Time 0.000 (0.000)	Loss 0.0550 (0.0658)	Prec@1 96.875 (94.701)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,283 Test: [46/60]	Model Time 0.011 (0.028)	Loss Time 0.000 (0.000)	Loss 0.0707 (0.0659)	Prec@1 93.750 (94.681)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,297 Test: [47/60]	Model Time 0.011 (0.027)	Loss Time 0.000 (0.000)	Loss 0.1235 (0.0671)	Prec@1 90.625 (94.596)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,310 Test: [48/60]	Model Time 0.011 (0.027)	Loss Time 0.000 (0.000)	Loss 0.0388 (0.0665)	Prec@1 100.000 (94.707)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,324 Test: [49/60]	Model Time 0.011 (0.027)	Loss Time 0.000 (0.000)	Loss 0.0894 (0.0669)	Prec@1 93.750 (94.688)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,338 Test: [50/60]	Model Time 0.010 (0.026)	Loss Time 0.000 (0.000)	Loss 0.0083 (0.0658)	Prec@1 100.000 (94.792)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,352 Test: [51/60]	Model Time 0.011 (0.026)	Loss Time 0.000 (0.000)	Loss 0.0911 (0.0663)	Prec@1 93.750 (94.772)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,365 Test: [52/60]	Model Time 0.010 (0.026)	Loss Time 0.000 (0.000)	Loss 0.0085 (0.0652)	Prec@1 100.000 (94.870)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,379 Test: [53/60]	Model Time 0.011 (0.025)	Loss Time 0.000 (0.000)	Loss 0.0207 (0.0644)	Prec@1 100.000 (94.965)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,393 Test: [54/60]	Model Time 0.011 (0.025)	Loss Time 0.000 (0.000)	Loss 0.0369 (0.0639)	Prec@1 96.875 (95.000)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,407 Test: [55/60]	Model Time 0.011 (0.025)	Loss Time 0.000 (0.000)	Loss 0.0629 (0.0639)	Prec@1 96.875 (95.033)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,421 Test: [56/60]	Model Time 0.010 (0.025)	Loss Time 0.000 (0.000)	Loss 0.0634 (0.0638)	Prec@1 93.750 (95.011)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,435 Test: [57/60]	Model Time 0.011 (0.024)	Loss Time 0.000 (0.000)	Loss 0.0534 (0.0637)	Prec@1 96.875 (95.043)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,449 Test: [58/60]	Model Time 0.011 (0.024)	Loss Time 0.000 (0.000)	Loss 0.0559 (0.0635)	Prec@1 93.750 (95.021)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,459 Test: [59/60]	Model Time 0.008 (0.024)	Loss Time 0.000 (0.000)	Loss 0.0214 (0.0632)	Prec@1 100.000 (95.060)	Prec@3 100.000 (100.000)	
+2025-11-29 23:33:48,462 Confusion Matrix:
+[[608  31   3]
+ [ 10 633   9]
+ [ 13  28 568]]
+2025-11-29 23:33:48,463 Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.96      0.95      0.96       642
+           1       0.91      0.97      0.94       652
+           2       0.98      0.93      0.96       609
+
+    accuracy                           0.95      1903
+   macro avg       0.95      0.95      0.95      1903
+weighted avg       0.95      0.95      0.95      1903
+
+Traceback (most recent call last):
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 131, in <module>
+    main()
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 127, in main
+    launch(sys.argv[1:])
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 121, in launch
+    trainer.eval_model()
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/trainer.py", line 400, in eval_model
+    if self.args.dataset == 'SOYBEAN_SEEDS':
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 85, in __getattr__
+    raise AttributeError("No such attribute: " + name)
+AttributeError: No such attribute: dataset
+arthurely@finn_dev_arthurely:/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq$ BREVITAS_JIT=1 python3 bnn_pynq_train.py --evaluate --network SOYBEAN_CNV_1W2A --resume experiments/SOYBEAN_CNV_1W2A_1W2A_20251127_205946/checkpoints/best.tar 
+/usr/local/lib/python3.10/dist-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
+  warnings.warn("TorchScript will treat type annotations of Tensor "
+Processamento concluído e dados salvos como arrays NumPy.
+Loading model checkpoint at: /home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/SOYBEAN_CNV_1W2A_1W2A_20251127_205946/checkpoints/best.tar
+/usr/local/lib/python3.10/dist-packages/torch/_tensor.py:1255: UserWarning: Named tensors and all their associated APIs are an experimental feature and subject to change. Please do not use them for anything important until they are released as stable. (Triggered internally at ../c10/core/TensorImpl.h:1758.)
+  return super(Tensor, self).rename(names)
+/usr/local/lib/python3.10/dist-packages/torch/nn/modules/conv.py:459: UserWarning: Defining your `__torch_function__` as a plain method is deprecated and will be an error in future, please define it as a classmethod. (Triggered internally at ../torch/csrc/utils/python_arg_parser.cpp:350.)
+  return F.conv2d(input, weight, bias, self.stride,
+/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas/nn/quant_linear.py:69: UserWarning: Defining your `__torch_function__` as a plain method is deprecated and will be an error in future, please define it as a classmethod. (Triggered internally at ../torch/csrc/utils/python_arg_parser.cpp:350.)
+  output_tensor = linear(x, quant_weight, quant_bias)
+2025-11-29 23:34:15,252 Test: [0/60]	Model Time 0.813 (0.813)	Loss Time 0.000 (0.000)	Loss 0.0422 (0.0422)	Prec@1 96.875 (96.875)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,336 Test: [1/60]	Model Time 0.080 (0.447)	Loss Time 0.000 (0.000)	Loss 0.0296 (0.0359)	Prec@1 96.875 (96.875)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,346 Test: [2/60]	Model Time 0.008 (0.300)	Loss Time 0.000 (0.000)	Loss 0.0287 (0.0335)	Prec@1 96.875 (96.875)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,357 Test: [3/60]	Model Time 0.008 (0.227)	Loss Time 0.000 (0.000)	Loss 0.0443 (0.0362)	Prec@1 96.875 (96.875)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,367 Test: [4/60]	Model Time 0.007 (0.183)	Loss Time 0.000 (0.000)	Loss 0.0746 (0.0439)	Prec@1 93.750 (96.250)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,378 Test: [5/60]	Model Time 0.008 (0.154)	Loss Time 0.000 (0.000)	Loss 0.0089 (0.0381)	Prec@1 100.000 (96.875)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,389 Test: [6/60]	Model Time 0.008 (0.133)	Loss Time 0.000 (0.000)	Loss 0.0904 (0.0455)	Prec@1 93.750 (96.429)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,399 Test: [7/60]	Model Time 0.008 (0.117)	Loss Time 0.000 (0.000)	Loss 0.0786 (0.0497)	Prec@1 93.750 (96.094)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,410 Test: [8/60]	Model Time 0.009 (0.105)	Loss Time 0.000 (0.000)	Loss 0.0540 (0.0501)	Prec@1 96.875 (96.181)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,422 Test: [9/60]	Model Time 0.008 (0.096)	Loss Time 0.000 (0.000)	Loss 0.1005 (0.0552)	Prec@1 90.625 (95.625)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,432 Test: [10/60]	Model Time 0.008 (0.088)	Loss Time 0.000 (0.000)	Loss 0.1480 (0.0636)	Prec@1 87.500 (94.886)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,443 Test: [11/60]	Model Time 0.008 (0.081)	Loss Time 0.000 (0.000)	Loss 0.0560 (0.0630)	Prec@1 96.875 (95.052)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,453 Test: [12/60]	Model Time 0.007 (0.075)	Loss Time 0.000 (0.000)	Loss 0.0959 (0.0655)	Prec@1 90.625 (94.712)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,465 Test: [13/60]	Model Time 0.009 (0.071)	Loss Time 0.000 (0.000)	Loss 0.0380 (0.0635)	Prec@1 96.875 (94.866)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,476 Test: [14/60]	Model Time 0.008 (0.066)	Loss Time 0.000 (0.000)	Loss 0.0098 (0.0600)	Prec@1 100.000 (95.208)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,486 Test: [15/60]	Model Time 0.008 (0.063)	Loss Time 0.000 (0.000)	Loss 0.0343 (0.0584)	Prec@1 96.875 (95.312)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,498 Test: [16/60]	Model Time 0.008 (0.059)	Loss Time 0.000 (0.000)	Loss 0.1030 (0.0610)	Prec@1 87.500 (94.853)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,508 Test: [17/60]	Model Time 0.007 (0.057)	Loss Time 0.000 (0.000)	Loss 0.0726 (0.0616)	Prec@1 90.625 (94.618)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,519 Test: [18/60]	Model Time 0.009 (0.054)	Loss Time 0.000 (0.000)	Loss 0.0731 (0.0622)	Prec@1 93.750 (94.572)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,530 Test: [19/60]	Model Time 0.007 (0.052)	Loss Time 0.000 (0.000)	Loss 0.0069 (0.0595)	Prec@1 100.000 (94.844)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,540 Test: [20/60]	Model Time 0.008 (0.050)	Loss Time 0.000 (0.000)	Loss 0.0462 (0.0588)	Prec@1 96.875 (94.940)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,553 Test: [21/60]	Model Time 0.009 (0.048)	Loss Time 0.000 (0.000)	Loss 0.0411 (0.0580)	Prec@1 96.875 (95.028)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,565 Test: [22/60]	Model Time 0.008 (0.046)	Loss Time 0.000 (0.000)	Loss 0.0087 (0.0559)	Prec@1 100.000 (95.245)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,576 Test: [23/60]	Model Time 0.008 (0.045)	Loss Time 0.000 (0.000)	Loss 0.0156 (0.0542)	Prec@1 100.000 (95.443)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,587 Test: [24/60]	Model Time 0.008 (0.043)	Loss Time 0.000 (0.000)	Loss 0.0357 (0.0535)	Prec@1 96.875 (95.500)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,598 Test: [25/60]	Model Time 0.008 (0.042)	Loss Time 0.000 (0.000)	Loss 0.0124 (0.0519)	Prec@1 100.000 (95.673)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,609 Test: [26/60]	Model Time 0.007 (0.040)	Loss Time 0.000 (0.000)	Loss 0.0695 (0.0525)	Prec@1 93.750 (95.602)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,620 Test: [27/60]	Model Time 0.008 (0.039)	Loss Time 0.000 (0.000)	Loss 0.0810 (0.0536)	Prec@1 93.750 (95.536)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,631 Test: [28/60]	Model Time 0.008 (0.038)	Loss Time 0.000 (0.000)	Loss 0.0605 (0.0538)	Prec@1 93.750 (95.474)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,642 Test: [29/60]	Model Time 0.008 (0.037)	Loss Time 0.000 (0.000)	Loss 0.0902 (0.0550)	Prec@1 93.750 (95.417)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,654 Test: [30/60]	Model Time 0.009 (0.036)	Loss Time 0.000 (0.000)	Loss 0.0190 (0.0538)	Prec@1 100.000 (95.565)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,665 Test: [31/60]	Model Time 0.008 (0.035)	Loss Time 0.000 (0.000)	Loss 0.0082 (0.0524)	Prec@1 100.000 (95.703)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,675 Test: [32/60]	Model Time 0.008 (0.035)	Loss Time 0.000 (0.000)	Loss 0.0194 (0.0514)	Prec@1 96.875 (95.739)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,687 Test: [33/60]	Model Time 0.008 (0.034)	Loss Time 0.000 (0.000)	Loss 0.0076 (0.0501)	Prec@1 100.000 (95.864)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,697 Test: [34/60]	Model Time 0.007 (0.033)	Loss Time 0.000 (0.000)	Loss 0.0293 (0.0495)	Prec@1 96.875 (95.893)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,708 Test: [35/60]	Model Time 0.008 (0.032)	Loss Time 0.000 (0.000)	Loss 0.1158 (0.0514)	Prec@1 93.750 (95.833)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,718 Test: [36/60]	Model Time 0.008 (0.032)	Loss Time 0.000 (0.000)	Loss 0.0487 (0.0513)	Prec@1 96.875 (95.861)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,728 Test: [37/60]	Model Time 0.007 (0.031)	Loss Time 0.000 (0.000)	Loss 0.0910 (0.0523)	Prec@1 93.750 (95.806)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,739 Test: [38/60]	Model Time 0.008 (0.030)	Loss Time 0.000 (0.000)	Loss 0.0219 (0.0516)	Prec@1 96.875 (95.833)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,750 Test: [39/60]	Model Time 0.008 (0.030)	Loss Time 0.000 (0.000)	Loss 0.0574 (0.0517)	Prec@1 96.875 (95.859)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,760 Test: [40/60]	Model Time 0.007 (0.029)	Loss Time 0.000 (0.000)	Loss 0.0697 (0.0522)	Prec@1 93.750 (95.808)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,771 Test: [41/60]	Model Time 0.008 (0.029)	Loss Time 0.000 (0.000)	Loss 0.0530 (0.0522)	Prec@1 93.750 (95.759)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,781 Test: [42/60]	Model Time 0.007 (0.028)	Loss Time 0.000 (0.000)	Loss 0.0145 (0.0513)	Prec@1 100.000 (95.858)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,792 Test: [43/60]	Model Time 0.008 (0.028)	Loss Time 0.000 (0.000)	Loss 0.0160 (0.0505)	Prec@1 100.000 (95.952)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,803 Test: [44/60]	Model Time 0.008 (0.027)	Loss Time 0.000 (0.000)	Loss 0.0796 (0.0511)	Prec@1 93.750 (95.903)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,813 Test: [45/60]	Model Time 0.007 (0.027)	Loss Time 0.000 (0.000)	Loss 0.0577 (0.0513)	Prec@1 96.875 (95.924)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,824 Test: [46/60]	Model Time 0.009 (0.027)	Loss Time 0.000 (0.000)	Loss 0.1149 (0.0526)	Prec@1 90.625 (95.811)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,835 Test: [47/60]	Model Time 0.007 (0.026)	Loss Time 0.000 (0.000)	Loss 0.1046 (0.0537)	Prec@1 90.625 (95.703)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,845 Test: [48/60]	Model Time 0.008 (0.026)	Loss Time 0.000 (0.000)	Loss 0.0078 (0.0528)	Prec@1 100.000 (95.791)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,856 Test: [49/60]	Model Time 0.008 (0.025)	Loss Time 0.000 (0.000)	Loss 0.0386 (0.0525)	Prec@1 96.875 (95.812)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,867 Test: [50/60]	Model Time 0.008 (0.025)	Loss Time 0.000 (0.000)	Loss 0.0035 (0.0515)	Prec@1 100.000 (95.895)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,879 Test: [51/60]	Model Time 0.009 (0.025)	Loss Time 0.000 (0.000)	Loss 0.0651 (0.0518)	Prec@1 93.750 (95.853)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,889 Test: [52/60]	Model Time 0.008 (0.024)	Loss Time 0.000 (0.000)	Loss 0.0203 (0.0512)	Prec@1 100.000 (95.932)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,900 Test: [53/60]	Model Time 0.008 (0.024)	Loss Time 0.000 (0.000)	Loss 0.0246 (0.0507)	Prec@1 100.000 (96.007)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,911 Test: [54/60]	Model Time 0.008 (0.024)	Loss Time 0.000 (0.000)	Loss 0.0389 (0.0505)	Prec@1 96.875 (96.023)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,921 Test: [55/60]	Model Time 0.007 (0.024)	Loss Time 0.000 (0.000)	Loss 0.0214 (0.0500)	Prec@1 100.000 (96.094)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,932 Test: [56/60]	Model Time 0.008 (0.023)	Loss Time 0.000 (0.000)	Loss 0.0646 (0.0502)	Prec@1 93.750 (96.053)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,943 Test: [57/60]	Model Time 0.007 (0.023)	Loss Time 0.000 (0.000)	Loss 0.0222 (0.0498)	Prec@1 96.875 (96.067)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,952 Test: [58/60]	Model Time 0.007 (0.023)	Loss Time 0.000 (0.000)	Loss 0.0243 (0.0493)	Prec@1 96.875 (96.081)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,961 Test: [59/60]	Model Time 0.007 (0.022)	Loss Time 0.000 (0.000)	Loss 0.0029 (0.0490)	Prec@1 100.000 (96.111)	Prec@3 100.000 (100.000)	
+2025-11-29 23:34:15,963 Confusion Matrix:
+[[611  28   3]
+ [  5 636  11]
+ [ 14  13 582]]
+2025-11-29 23:34:15,965 Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.97      0.95      0.96       642
+           1       0.94      0.98      0.96       652
+           2       0.98      0.96      0.97       609
+
+    accuracy                           0.96      1903
+   macro avg       0.96      0.96      0.96      1903
+weighted avg       0.96      0.96      0.96      1903
+
+Traceback (most recent call last):
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 131, in <module>
+    main()
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 127, in main
+    launch(sys.argv[1:])
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 121, in launch
+    trainer.eval_model()
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/trainer.py", line 400, in eval_model
+    if self.args.dataset == 'SOYBEAN_SEEDS':
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 85, in __getattr__
+    raise AttributeError("No such attribute: " + name)
+AttributeError: No such attribute: dataset
+arthurely@finn_dev_arthurely:/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq$ BREVITAS_JIT=1 python3 bnn_pynq_train.py --evaluate --network SOYBEAN_CNV_2W2A --resume experiments/SOYBEAN_CNV_2W2A_2W2A_20250905_175846/checkpoints/best.tar 
+/usr/local/lib/python3.10/dist-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
+  warnings.warn("TorchScript will treat type annotations of Tensor "
+Processamento concluído e dados salvos como arrays NumPy.
+Loading model checkpoint at: /home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/SOYBEAN_CNV_2W2A_2W2A_20250905_175846/checkpoints/best.tar
+/usr/local/lib/python3.10/dist-packages/torch/_tensor.py:1255: UserWarning: Named tensors and all their associated APIs are an experimental feature and subject to change. Please do not use them for anything important until they are released as stable. (Triggered internally at ../c10/core/TensorImpl.h:1758.)
+  return super(Tensor, self).rename(names)
+/usr/local/lib/python3.10/dist-packages/torch/nn/modules/conv.py:459: UserWarning: Defining your `__torch_function__` as a plain method is deprecated and will be an error in future, please define it as a classmethod. (Triggered internally at ../torch/csrc/utils/python_arg_parser.cpp:350.)
+  return F.conv2d(input, weight, bias, self.stride,
+/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas/nn/quant_linear.py:69: UserWarning: Defining your `__torch_function__` as a plain method is deprecated and will be an error in future, please define it as a classmethod. (Triggered internally at ../torch/csrc/utils/python_arg_parser.cpp:350.)
+  output_tensor = linear(x, quant_weight, quant_bias)
+2025-11-29 23:35:09,184 Test: [0/60]	Model Time 1.298 (1.298)	Loss Time 0.000 (0.000)	Loss 0.0967 (0.0967)	Prec@1 90.625 (90.625)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,269 Test: [1/60]	Model Time 0.082 (0.690)	Loss Time 0.000 (0.000)	Loss 0.0029 (0.0498)	Prec@1 100.000 (95.312)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,281 Test: [2/60]	Model Time 0.009 (0.463)	Loss Time 0.000 (0.000)	Loss 0.0487 (0.0494)	Prec@1 96.875 (95.833)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,293 Test: [3/60]	Model Time 0.009 (0.350)	Loss Time 0.000 (0.000)	Loss 0.0996 (0.0620)	Prec@1 90.625 (94.531)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,306 Test: [4/60]	Model Time 0.010 (0.282)	Loss Time 0.000 (0.000)	Loss 0.0594 (0.0615)	Prec@1 96.875 (95.000)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,319 Test: [5/60]	Model Time 0.010 (0.236)	Loss Time 0.000 (0.000)	Loss 0.0238 (0.0552)	Prec@1 96.875 (95.312)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,331 Test: [6/60]	Model Time 0.010 (0.204)	Loss Time 0.000 (0.000)	Loss 0.0841 (0.0593)	Prec@1 93.750 (95.089)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,344 Test: [7/60]	Model Time 0.010 (0.180)	Loss Time 0.000 (0.000)	Loss 0.0508 (0.0582)	Prec@1 93.750 (94.922)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,357 Test: [8/60]	Model Time 0.010 (0.161)	Loss Time 0.000 (0.000)	Loss 0.0964 (0.0625)	Prec@1 93.750 (94.792)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,370 Test: [9/60]	Model Time 0.010 (0.146)	Loss Time 0.000 (0.000)	Loss 0.0536 (0.0616)	Prec@1 93.750 (94.688)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,382 Test: [10/60]	Model Time 0.010 (0.133)	Loss Time 0.000 (0.000)	Loss 0.0775 (0.0630)	Prec@1 93.750 (94.602)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,395 Test: [11/60]	Model Time 0.010 (0.123)	Loss Time 0.000 (0.000)	Loss 0.0302 (0.0603)	Prec@1 96.875 (94.792)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,408 Test: [12/60]	Model Time 0.010 (0.114)	Loss Time 0.000 (0.000)	Loss 0.0711 (0.0611)	Prec@1 93.750 (94.712)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,421 Test: [13/60]	Model Time 0.010 (0.107)	Loss Time 0.000 (0.000)	Loss 0.0242 (0.0585)	Prec@1 96.875 (94.866)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,434 Test: [14/60]	Model Time 0.010 (0.100)	Loss Time 0.000 (0.000)	Loss 0.0066 (0.0550)	Prec@1 100.000 (95.208)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,448 Test: [15/60]	Model Time 0.010 (0.095)	Loss Time 0.000 (0.000)	Loss 0.0209 (0.0529)	Prec@1 96.875 (95.312)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,460 Test: [16/60]	Model Time 0.009 (0.090)	Loss Time 0.000 (0.000)	Loss 0.0363 (0.0519)	Prec@1 96.875 (95.404)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,475 Test: [17/60]	Model Time 0.012 (0.085)	Loss Time 0.000 (0.000)	Loss 0.0600 (0.0524)	Prec@1 93.750 (95.312)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,488 Test: [18/60]	Model Time 0.010 (0.082)	Loss Time 0.000 (0.000)	Loss 0.0259 (0.0510)	Prec@1 96.875 (95.395)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,502 Test: [19/60]	Model Time 0.011 (0.078)	Loss Time 0.000 (0.000)	Loss 0.0015 (0.0485)	Prec@1 100.000 (95.625)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,514 Test: [20/60]	Model Time 0.009 (0.075)	Loss Time 0.000 (0.000)	Loss 0.0130 (0.0468)	Prec@1 100.000 (95.833)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,527 Test: [21/60]	Model Time 0.010 (0.072)	Loss Time 0.000 (0.000)	Loss 0.0428 (0.0466)	Prec@1 96.875 (95.881)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,539 Test: [22/60]	Model Time 0.010 (0.069)	Loss Time 0.000 (0.000)	Loss 0.0029 (0.0447)	Prec@1 100.000 (96.060)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,552 Test: [23/60]	Model Time 0.010 (0.067)	Loss Time 0.000 (0.000)	Loss 0.0337 (0.0443)	Prec@1 96.875 (96.094)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,565 Test: [24/60]	Model Time 0.010 (0.064)	Loss Time 0.000 (0.000)	Loss 0.0613 (0.0450)	Prec@1 93.750 (96.000)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,579 Test: [25/60]	Model Time 0.011 (0.062)	Loss Time 0.000 (0.000)	Loss 0.0562 (0.0454)	Prec@1 96.875 (96.034)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,592 Test: [26/60]	Model Time 0.010 (0.060)	Loss Time 0.000 (0.000)	Loss 0.0565 (0.0458)	Prec@1 96.875 (96.065)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,607 Test: [27/60]	Model Time 0.012 (0.059)	Loss Time 0.000 (0.000)	Loss 0.0780 (0.0469)	Prec@1 93.750 (95.982)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,620 Test: [28/60]	Model Time 0.010 (0.057)	Loss Time 0.000 (0.000)	Loss 0.0290 (0.0463)	Prec@1 96.875 (96.013)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,635 Test: [29/60]	Model Time 0.013 (0.055)	Loss Time 0.000 (0.000)	Loss 0.0895 (0.0478)	Prec@1 93.750 (95.938)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,649 Test: [30/60]	Model Time 0.010 (0.054)	Loss Time 0.000 (0.000)	Loss 0.0563 (0.0480)	Prec@1 96.875 (95.968)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,661 Test: [31/60]	Model Time 0.010 (0.053)	Loss Time 0.000 (0.000)	Loss 0.0195 (0.0471)	Prec@1 100.000 (96.094)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,674 Test: [32/60]	Model Time 0.010 (0.051)	Loss Time 0.000 (0.000)	Loss 0.0018 (0.0458)	Prec@1 100.000 (96.212)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,687 Test: [33/60]	Model Time 0.011 (0.050)	Loss Time 0.000 (0.000)	Loss 0.0201 (0.0450)	Prec@1 96.875 (96.232)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,700 Test: [34/60]	Model Time 0.009 (0.049)	Loss Time 0.000 (0.000)	Loss 0.0261 (0.0445)	Prec@1 100.000 (96.339)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,715 Test: [35/60]	Model Time 0.012 (0.048)	Loss Time 0.000 (0.000)	Loss 0.1672 (0.0479)	Prec@1 87.500 (96.094)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,728 Test: [36/60]	Model Time 0.010 (0.047)	Loss Time 0.000 (0.000)	Loss 0.0524 (0.0480)	Prec@1 96.875 (96.115)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,741 Test: [37/60]	Model Time 0.010 (0.046)	Loss Time 0.000 (0.000)	Loss 0.1234 (0.0500)	Prec@1 90.625 (95.970)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,753 Test: [38/60]	Model Time 0.010 (0.045)	Loss Time 0.000 (0.000)	Loss 0.0014 (0.0487)	Prec@1 100.000 (96.074)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,767 Test: [39/60]	Model Time 0.010 (0.044)	Loss Time 0.000 (0.000)	Loss 0.0348 (0.0484)	Prec@1 96.875 (96.094)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,779 Test: [40/60]	Model Time 0.010 (0.043)	Loss Time 0.000 (0.000)	Loss 0.0586 (0.0486)	Prec@1 96.875 (96.113)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,791 Test: [41/60]	Model Time 0.009 (0.042)	Loss Time 0.000 (0.000)	Loss 0.0167 (0.0479)	Prec@1 100.000 (96.205)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,804 Test: [42/60]	Model Time 0.010 (0.042)	Loss Time 0.000 (0.000)	Loss 0.0012 (0.0468)	Prec@1 100.000 (96.294)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,816 Test: [43/60]	Model Time 0.009 (0.041)	Loss Time 0.000 (0.000)	Loss 0.0356 (0.0465)	Prec@1 93.750 (96.236)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,829 Test: [44/60]	Model Time 0.010 (0.040)	Loss Time 0.000 (0.000)	Loss 0.0485 (0.0466)	Prec@1 96.875 (96.250)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,842 Test: [45/60]	Model Time 0.010 (0.040)	Loss Time 0.000 (0.000)	Loss 0.0161 (0.0459)	Prec@1 100.000 (96.332)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,855 Test: [46/60]	Model Time 0.010 (0.039)	Loss Time 0.000 (0.000)	Loss 0.1008 (0.0471)	Prec@1 90.625 (96.210)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,868 Test: [47/60]	Model Time 0.010 (0.038)	Loss Time 0.000 (0.000)	Loss 0.0572 (0.0473)	Prec@1 96.875 (96.224)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,881 Test: [48/60]	Model Time 0.011 (0.038)	Loss Time 0.000 (0.000)	Loss 0.0200 (0.0467)	Prec@1 100.000 (96.301)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,894 Test: [49/60]	Model Time 0.010 (0.037)	Loss Time 0.000 (0.000)	Loss 0.0612 (0.0470)	Prec@1 93.750 (96.250)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,907 Test: [50/60]	Model Time 0.011 (0.037)	Loss Time 0.000 (0.000)	Loss 0.0006 (0.0461)	Prec@1 100.000 (96.324)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,920 Test: [51/60]	Model Time 0.010 (0.036)	Loss Time 0.000 (0.000)	Loss 0.0830 (0.0468)	Prec@1 93.750 (96.274)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,932 Test: [52/60]	Model Time 0.010 (0.036)	Loss Time 0.000 (0.000)	Loss 0.0138 (0.0462)	Prec@1 100.000 (96.344)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,947 Test: [53/60]	Model Time 0.011 (0.035)	Loss Time 0.000 (0.000)	Loss 0.0125 (0.0456)	Prec@1 100.000 (96.412)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,960 Test: [54/60]	Model Time 0.011 (0.035)	Loss Time 0.000 (0.000)	Loss 0.0532 (0.0457)	Prec@1 96.875 (96.420)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,973 Test: [55/60]	Model Time 0.010 (0.034)	Loss Time 0.000 (0.000)	Loss 0.0292 (0.0454)	Prec@1 96.875 (96.429)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:09,985 Test: [56/60]	Model Time 0.010 (0.034)	Loss Time 0.000 (0.000)	Loss 0.0632 (0.0457)	Prec@1 93.750 (96.382)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:10,000 Test: [57/60]	Model Time 0.012 (0.034)	Loss Time 0.000 (0.000)	Loss 0.0416 (0.0457)	Prec@1 93.750 (96.336)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:10,013 Test: [58/60]	Model Time 0.010 (0.033)	Loss Time 0.000 (0.000)	Loss 0.0162 (0.0452)	Prec@1 100.000 (96.398)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:10,023 Test: [59/60]	Model Time 0.008 (0.033)	Loss Time 0.000 (0.000)	Loss 0.0168 (0.0449)	Prec@1 100.000 (96.427)	Prec@3 100.000 (100.000)	
+2025-11-29 23:35:10,025 Confusion Matrix:
+[[617  21   4]
+ [  8 637   7]
+ [ 10  18 581]]
+2025-11-29 23:35:10,027 Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.97      0.96      0.97       642
+           1       0.94      0.98      0.96       652
+           2       0.98      0.95      0.97       609
+
+    accuracy                           0.96      1903
+   macro avg       0.97      0.96      0.96      1903
+weighted avg       0.96      0.96      0.96      1903
+
+Traceback (most recent call last):
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 131, in <module>
+    main()
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 127, in main
+    launch(sys.argv[1:])
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 121, in launch
+    trainer.eval_model()
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/trainer.py", line 400, in eval_model
+    if self.args.dataset == 'SOYBEAN_SEEDS':
+  File "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/bnn_pynq_train.py", line 85, in __getattr__
+    raise AttributeError("No such attribute: " + name)
+AttributeError: No such attribute: dataset
+arthurely@finn_dev_arthurely:/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq$ 

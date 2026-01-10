@@ -3,11 +3,22 @@ import argparse
 import os
 from datetime import datetime
 
-from config import TOPOLOGIES_TO_EXPLORE
+# --- Configs ---
+from config import (
+    TOPOLOGIES_TO_EXPLORE, 
+    TRAINING_CONFIG, 
+    CLASSIFICATION_CONSTRAINTS, 
+    FINETUNING_CONFIG
+)
+# --- Utils ---
+from utils.ml_utils import Trainer, Pruner, Evaluator, load_dataloaders, SatImgDataset
+# --- Nossas Classes Refatoradas ---
+from training_logger import TrainingSummaryLogger
 from model_optimizer import ModelOptimizer
-from utils.ml_utils import SatImgDataset
+# --- Classes de Modelo ---
+from cnns_classes import CommonWeightQuant 
 
-def create_main_build_dir(base_dir="hw/builds"):
+def create_main_build_dir(base_dir="sw/builds"): # <-- MUDANÇA AQUI
     """Cria um diretório único para esta execução, baseado no timestamp."""
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     build_dir = os.path.join(base_dir, f"run_{timestamp}")
@@ -17,30 +28,59 @@ def create_main_build_dir(base_dir="hw/builds"):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Fase 1: Encontra os melhores modelos de SW (.pth) que atendem às restrições de classificação."
+        description="Fase 1: Encontra os melhores modelos de SW (.pth)."
     )
-    # Este script não precisa mais de argumentos de modo.
     args = parser.parse_args()
 
-    build_dir = create_main_build_dir()
+    # --- 1. Montagem das Dependências ---
+    build_dir = create_main_build_dir() # Esta função agora usa 'sw/builds'
     
+    print("Montando dependências...")
+    # Carrega os dados
+    train_loader, test_loader, _ = load_dataloaders(
+        TRAINING_CONFIG['batch_size']
+    )
+    
+    # Instancia as classes de utilidade
+    trainer = Trainer(train_loader, test_loader, device='cuda')
+    evaluator = Evaluator(test_loader, device='cuda')
+    pruner = Pruner()
+    
+    # Instancia o logger
+    summary_path = os.path.join(build_dir, "training_summary.csv")
+    logger = TrainingSummaryLogger(summary_path, CLASSIFICATION_CONSTRAINTS)
+
+    # Define a configuração do quantizador que o Pruner precisa saber
+    quantizer_cfg = {
+        'weight': CommonWeightQuant
+    }
+
+    # --- 2. Injeção das Dependências ---
     model_optimizer = ModelOptimizer(
         build_dir=build_dir,
-        topologies_config=TOPOLOGIES_TO_EXPLORE
+        trainer=trainer,
+        evaluator=evaluator,
+        pruner=pruner,
+        logger=logger,
+        quantizer_cfg=quantizer_cfg, 
+        training_cfg=TRAINING_CONFIG,
+        class_constraints=CLASSIFICATION_CONSTRAINTS,
+        finetuning_cfg=FINETUNING_CONFIG
     )
 
+    # --- 3. Execução da Lógica de Negócios ---
     print("\n--- MODO: OTIMIZAÇÃO DE MODELO (GERANDO ARQUIVOS .pth) ---")
     for topology in TOPOLOGIES_TO_EXPLORE:
-        print(f"\n{'='*58}\nIniciando Otimização de Modelo para Topologia: {topology['id']}\n{'='*58}")
+        print(f"\n{'='*58}\nIniciando Otimização para: {topology['id']}\n{'='*58}")
         
-        pytorch_model_path, _ = model_optimizer.find_optimal_model(topology)
+        model_path, _ = model_optimizer.find_optimal_model(topology)
         
-        if pytorch_model_path:
-            print(f"[✓] Processo concluído para Topologia {topology['id']}. Modelo ótimo salvo em: {pytorch_model_path}")
+        if model_path:
+            print(f"[✓] Concluído para {topology['id']}. Modelo salvo em: {model_path}")
         else:
-            print(f"[✗] Processo concluído para Topologia {topology['id']}. Não foi possível gerar um modelo que satisfaça as restrições.")
+            print(f"[✗] Concluído para {topology['id']}. Nenhum modelo viável encontrado.")
     
-    print(f"\nOtimização de todos os modelos concluída. Os resultados estão no diretório: {build_dir}")
+    print(f"\nOtimização concluída. Resultados em: {build_dir}")
 
 if __name__ == "__main__":
     main()

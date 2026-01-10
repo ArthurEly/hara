@@ -1,5 +1,5 @@
 # --- Bibliotecas Padrão do Python ---
-import copy # <-- ADICIONADO
+import copy
 import csv
 import json
 import os
@@ -17,17 +17,11 @@ import torch
 from onnx import helper
 
 # --- Módulos Específicos do Projeto (Brevitas, QONNX, FINN) ---
-
-# Brevitas
 from brevitas.export import export_qonnx
-
-# QONNX (Utilitários e Core)
 from qonnx.core.datatype import DataType
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.custom_op.registry import getCustomOp
 from qonnx.util.cleanup import cleanup as qonnx_cleanup
-
-# QONNX (Transformações Gerais)
 from qonnx.transformation.bipolar_to_xnor import ConvertBipolarMatMulToXnorPopcount
 from qonnx.transformation.fold_constants import FoldConstants
 from qonnx.transformation.general import (
@@ -42,18 +36,12 @@ from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.transformation.insert_topk import InsertTopK
 from qonnx.transformation.lower_convs_to_matmul import LowerConvsToMatMul
 from finn.transformation.streamline.round_thresholds import RoundAndClipThresholds
-
-# FINN (Builder)
 import finn.builder.build_dataflow as build
 import finn.builder.build_dataflow_config as build_cfg
 from finn.util.test import get_test_model_trained
-
-# FINN (Transformações)
 import finn.transformation.fpgadataflow.convert_to_hw_layers as to_hw
 import finn.transformation.streamline.absorb as absorb
-from finn.transformation.fpgadataflow.create_dataflow_partition import (
-    CreateDataflowPartition,
-)
+from finn.transformation.fpgadataflow.create_dataflow_partition import CreateDataflowPartition
 from finn.transformation.move_reshape import RemoveCNVtoFCFlatten
 from finn.transformation.qonnx.convert_qonnx_to_finn import ConvertQONNXtoFINN
 from finn.transformation.streamline import Streamline
@@ -61,11 +49,8 @@ from finn.transformation.streamline.reorder import (
     MakeMaxPoolNHWC,
     MoveScalarLinearPastInvariants,
 )
-
 import yaml
 from utils.ml_utils import load_pruned_model
-
-# Carregadores Brevitas
 from brevitas_examples.bnn_pynq.models import model_with_cfg
 from brevitas_examples.bnn_pynq.extractor import ModelExtractor
 
@@ -100,6 +85,36 @@ class utils():
         print(f"succesfully saved at {csv_pathname}")
 
     @staticmethod
+    def clean_build_artifacts(build_dir):
+        """
+        Remove diretórios pesados de uma build do FINN para economizar espaço,
+        mantendo apenas logs, relatórios JSON e configurações.
+        """
+        # Lista de pastas/arquivos que costumam ser grandes e descartáveis após a extração de dados
+        trash_list = [
+            "intermediate_models",
+            "output_ip", 
+            "stitched_ip",
+            "vivado_ip_cache",
+            "vivado_zynq_proj",
+            "bitfile", 
+            "driver",
+            "pyverilator_ipstitched",
+        ]
+
+        print(f"   -> 🧹 Limpando artefatos pesados em: {build_dir}")
+        for item in trash_list:
+            path = os.path.join(build_dir, item)
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                elif os.path.isfile(path):
+                    os.remove(path)
+            except Exception as e:
+                # É normal falhar se o arquivo não existir
+                pass
+
+    @staticmethod
     def move_intermediate_outputs_dir(src, dst):
         source_folder = src
         destination_folder = dst
@@ -107,18 +122,14 @@ class utils():
         if os.path.exists(destination_folder):
             shutil.rmtree(destination_folder)
             
-        # fetch all files
         for file_name in os.listdir(source_folder):
-            # construct full file path
             source = source_folder + file_name
             destination = destination_folder + file_name
-            # move only files
             if "pyverilator_ipstitched" in file_name:
                 shutil.rmtree(source)
             else:
                 try:
                     shutil.move(source, destination)
-                    print("Arquivo movido com sucesso!")
                 except FileNotFoundError:
                     print("Erro: Arquivo de origem não encontrado.")
                 except PermissionError:
@@ -190,51 +201,23 @@ class utils():
     
     @staticmethod
     def map_resources_to_components(folding_config_path, utilization_report_path):
-        """
-        Mapeia a utilização de recursos de hardware para cada componente de um
-        design FINN.
-
-        Esta função lê os componentes de um arquivo de configuração de folding (.json)
-        e extrai a utilização de recursos de cada um a partir de um relatório de
-        utilização do Vivado (.rpt).
-
-        Args:
-            folding_config_path (str): O caminho para o arquivo de configuração
-                                        de folding (final_hw_config.json).
-            utilization_report_path (str): O caminho para o relatório de
-                                            utilização (finn_design_partition_util.rpt).
-
-        Returns:
-            dict: Um dicionário onde as chaves são os nomes dos componentes e os
-                valores são dicionários com a utilização de recursos de cada um.
-                Retorna None se algum dos arquivos de entrada não for encontrado.
-        """
-        import json
-        import os
-        import re
         if not os.path.exists(folding_config_path) or not os.path.exists(utilization_report_path):
             print("Erro: Arquivo de configuração ou de relatório não encontrado.")
             return None
 
-        # 1. Carregar os nomes dos componentes do arquivo JSON
         with open(folding_config_path, 'r') as f:
             folding_config = json.load(f)
         
         component_names = [key for key in folding_config.keys() if key != "Defaults"]
 
-        # 2. Ler todo o conteúdo do arquivo de relatório de uma vez
         with open(utilization_report_path, 'r') as f:
             report_lines = f.readlines()
 
-        # 3. Processar o relatório para extrair dados de cada componente
         resource_map = {}
         for line in report_lines:
-            # Pula linhas que não contêm dados de utilização (ex: cabeçalhos, separadores)
             if not line.strip().startswith('|'):
                 continue
 
-            # Usa expressão regular para extrair o nome da instância e os números
-            # Isso é mais robusto do que usar split() com posições fixas
             match = re.search(r"\|\s*(\S+)\s*\|\s*\S+.*?\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|", line)
             
             if not match:
@@ -242,11 +225,7 @@ class utils():
                 
             instance_name = match.group(1)
             
-            # Verifica se o nome da instância corresponde a um dos nossos componentes
             for component in component_names:
-                # A correspondência é feita se o nome do componente estiver no início
-                # do nome da instância no relatório. Ex: "MVAU_hls_0" corresponde a
-                # "MVAU_hls_0" ou "MVAU_hls_0_imp_...".
                 if instance_name.startswith(component):
                     try:
                         total_luts = int(match.group(2))
@@ -257,12 +236,8 @@ class utils():
                         ramb36 = int(match.group(7))
                         ramb18 = int(match.group(8))
                         dsp = int(match.group(9))
-                        
-                        # Normaliza o BRAM para equivalentes de 36k
                         bram_36k = ramb36 + ramb18 / 2.0
 
-                        # Adiciona ao nosso mapa de recursos, garantindo que pegamos
-                        # a linha de maior nível hierárquico (a primeira que encontrarmos)
                         if component not in resource_map:
                             resource_map[component] = {
                                 "Total LUTs": total_luts,
@@ -276,32 +251,12 @@ class utils():
                                 "DSP Blocks": dsp
                             }
                     except (IndexError, ValueError):
-                        # Se uma linha correspondente não tiver o formato de dados esperado, ignora.
                         continue
 
         return resource_map
     
-    # Em hw_utils.py, dentro da classe utils
-
     @staticmethod
     def attempt_resource_tradeoff(current_folding, failed_build_dir, resource_limits):
-        """
-        Tenta aplicar um trade-off de recursos BRAM -> LUTRAM de forma iterativa.
-        Se o maior consumidor de BRAM já foi modificado, ele passa para o próximo.
-
-        Args:
-            current_folding (dict): A configuração de folding que causou a falha.
-            failed_build_dir (str): O diretório do build que falhou.
-            resource_limits (dict): Os limites de recursos totais.
-
-        Returns:
-            tuple: (dict, bool) contendo a nova configuração de folding e um
-                   booleano indicando se alguma modificação foi feita.
-        """
-        import copy
-        
-        
-        # Encontra o relatório de utilização no diretório do build que falhou
         report_path = None
         for root, _, files in os.walk(failed_build_dir):
             for file in files:
@@ -315,7 +270,6 @@ class utils():
             print("  -> [!] Relatório de utilização do build que falhou não encontrado.")
             return current_folding, False
 
-        # Verifica qual recurso foi excedido
         total_usage = utils.extract_area_from_rpt(failed_build_dir)
         if not total_usage:
              print("  -> [!] Não foi possível extrair a utilização total de recursos do relatório.")
@@ -324,11 +278,9 @@ class utils():
         resource_diffs = utils.check_resource_usage(total_usage, resource_limits)
         exceeded_resources = [res for res, diff in resource_diffs.items() if diff < 0]
 
-        # --- LÓGICA DE TRADE-OFF ITERATIVA: FOCO EM BRAM ---
         if "BRAM (36k)" in exceeded_resources:
             print(f"  -> [!] Recurso BRAM excedido. Analisando componentes para trade-off.")
 
-            # Carrega o JSON de configuração final do build que falhou
             final_hw_config_path = os.path.join(failed_build_dir, "final_hw_config.json")
             if not os.path.exists(final_hw_config_path):
                  print(f"  -> [!] final_hw_config.json não encontrado em {failed_build_dir}")
@@ -352,24 +304,16 @@ class utils():
             modified_folding = copy.deepcopy(current_folding)
             was_modified = False
 
-            # --- LÓGICA ATUALIZADA ---
-            # Itera sobre os componentes, do maior para o menor consumidor de BRAM
             for component_name, resources in sorted_by_bram:
-                # Verifica se o componente é um candidato válido (usa BRAM, está no folding)
                 if resources.get('BRAM (36k)', 0) > 0 and component_name in modified_folding:
                     component_config = modified_folding[component_name]
 
-                    # A CONDIÇÃO MAIS IMPORTANTE:
-                    # Verifica se o ram_style AINDA NÃO FOI alterado para 'distributed'
                     if component_config.get('ram_style') != 'distributed':
                         print(f"  -> Modificando '{component_name}' (consumidor de BRAM) para usar LUTRAM.")
                         component_config['ram_style'] = 'distributed'
                         was_modified = True
-                        
-                        # Modifica apenas o primeiro candidato válido que encontrar e para.
                         break
                     else:
-                        # Se já foi modificado, imprime um aviso e continua para o próximo
                         print(f"  -> Ignorando '{component_name}', pois já está configurado para 'distributed'.")
             
             if not was_modified:
@@ -437,7 +381,6 @@ class utils():
         prev_folding = {}
         folding_diff = {}
 
-        # Tenta calcular o diff com a entrada anterior
         if os.path.isfile(file_path):
             try:
                 df = pd.read_csv(file_path)
@@ -449,7 +392,6 @@ class utils():
             except Exception as e:
                 print(f"[!] Erro ao processar folding anterior: {e}")
 
-        # Informações base
         summary = {
             "date": now,
             "hw_name": hw_name,
@@ -461,12 +403,10 @@ class utils():
             "resource_limits": json.dumps(resource_limits)
         }
 
-        # Dados de área
         area_data = utils.extract_area_from_rpt(build_dir)
         if area_data:
             summary.update(area_data)
 
-        # Dados de throughput
         perf_path = os.path.join(build_dir, "report", "estimate_network_performance.json")
         if os.path.isfile(perf_path):
             try:
@@ -477,7 +417,6 @@ class utils():
             except Exception as e:
                 print(f"[!] Erro ao ler estimated throughput: {e}")
 
-        # Ordem dos campos no CSV
         field_order = [
             "date", "hw_name", "status", "duration_in_seconds",
             "folding_summary", "folding_diff", "build_dir", "resource_limits",
@@ -485,7 +424,6 @@ class utils():
             "estimated_throughput_fps", "max_cycles_node_name"
         ]
 
-        # Escrita no CSV
         file_exists = os.path.isfile(file_path)
         with open(file_path, 'a', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=field_order)
@@ -506,7 +444,6 @@ class utils():
             print("[!] Nenhuma build com status 'success' encontrada.")
             return
 
-        # Função para extrair número de hw_name para ordenação
         def extract_number(hw_name):
             match = re.search(r'(\d+)', hw_name)
             return int(match.group(1)) if match else float('inf')
@@ -547,9 +484,7 @@ class utils():
     @staticmethod
     def modify_folding_naive(folding, onnx_path, estimate_layer_cycles,
                         only_pe=False, only_simd=False, mvau_wwidth_max=36, max_pe=128):
-        import onnx
-        from onnx import helper
-
+        
         def get_layer_features(path):
             model = onnx.load(path)
             feats = {}
@@ -587,17 +522,12 @@ class utils():
                 new_folding[layer] = {k: cfg[k] for k in ("PE", "SIMD") if k in cfg}
                 continue
             
-            # --- MODIFICADO ---
-            # Preserva todas as chaves existentes (como ram_style)
             new_cfg = copy.deepcopy(cfg)
-            # --- FIM DA MODIFICAÇÃO ---
-            
             f = feature_dims.get(layer, {})
             modified = False
 
             op = f.get("op_type", "")
             
-            # Primeiro avança SIMD
             if "SIMD" in new_cfg:
                 dim = f.get("MW") or f.get("IFMChannels") or f.get("NumChannels")
                 simd0 = new_cfg["SIMD"]
@@ -606,7 +536,6 @@ class utils():
                     new_cfg["SIMD"] = nxt
                     modified = True
 
-            # Depois avança PE
             if "PE" in new_cfg:
                 mh = f.get("MH")
                 pe0 = new_cfg["PE"]
@@ -653,7 +582,7 @@ class utils():
         new_folding = {}
         layers_modified = False
 
-        max_latency = max(estimate_layer_cycles.values())
+        max_latency = max(estimate_layer_cycles.values()) if estimate_layer_cycles else 0
         critical_layers = [k for k, v in estimate_layer_cycles.items() if v == max_latency]
             
         for layer in folding:
@@ -662,10 +591,7 @@ class utils():
                 continue
 
             cfg = folding[layer]
-            # --- MODIFICADO ---
-            # Preserva todas as chaves existentes (como ram_style)
             new_cfg = copy.deepcopy(cfg)
-            # --- FIM DA MODIFICAÇÃO ---
 
             layer_features = feature_dims.get(layer, {})
             modified = False
@@ -681,7 +607,6 @@ class utils():
                             print(f"[→] Ativado parallel_window em {layer}")
                             modified = True
 
-                # Tentar modificar SIMD
                 if not only_pe and "SIMD" in new_cfg:
                     mw = layer_features.get("MW") or layer_features.get("IFMChannels") or layer_features.get("NumChannels")
                     if mw:
@@ -692,7 +617,6 @@ class utils():
                             new_cfg["SIMD"] = new_simd
                             modified = True
 
-                # Tentar modificar PE
                 if not only_simd and "PE" in new_cfg and "MH" in layer_features:
                     mh = layer_features["MH"]
                     new_pe = new_cfg["PE"] * 2
@@ -715,17 +639,8 @@ class utils():
     @staticmethod
     def modify_folding(folding, onnx_path, estimate_layer_cycles,
                     only_pe=False, only_simd=False, mvau_wwidth_max=36, max_pe=128):
-        import onnx
-        from onnx import helper
-        import re
-        import json
-        import copy
-
+        
         def get_layer_features(path):
-            """
-            Função atualizada para extrair apenas as dimensões de folding (MH/MW)
-            sem a lógica de WBits.
-            """
             model = onnx.load(path)
             feats = {}
             for node in model.graph.node:
@@ -787,7 +702,6 @@ class utils():
                         nxt_simd = next_divisor(dim_simd, simd0)
                         print(f"[DEBUG]       -> Próximo divisor para SIMD: {nxt_simd}")
 
-                        # --- Adição do caso especial para ConvolutionInputGenerator ---
                         if nxt_simd is None and new_cfg.get("parallel_window", 0) == 0 and ("ConvolutionInputGenerator" in f.get("op_type", "")):
                             print(f"[DEBUG]       -> SIMD já está no máximo para {layer}. Ativando parallel_window.")
                             new_cfg["parallel_window"] = 1
@@ -828,16 +742,6 @@ class utils():
 
     @staticmethod
     def reset_folding(folding, onnx_path, fixed_resources=None):
-        """
-        Reseta uma configuração de folding para os menores valores válidos (PE=1, SIMD=1),
-        mas aplica configurações de recursos fixas (ex: ram_style) se fornecidas.
-        """
-        import copy
-        import onnx
-        import math
-        from onnx import helper
-
-        # --- Funções Auxiliares ---
         def _get_hw_layer_features(path):
             model = onnx.load(path)
             feats = {}
@@ -856,11 +760,9 @@ class utils():
                 if mw % d == 0: return d
             return mw
 
-        # --- Lógica Principal ---
         layer_features = _get_hw_layer_features(onnx_path)
         new_folding = copy.deepcopy(folding)
 
-        # 1. Reseta PE e SIMD para os valores mínimos
         for node_name, config in new_folding.items():
             if "PE" in config: config["PE"] = 1
             if "SIMD" in config: config["SIMD"] = 1
@@ -869,14 +771,11 @@ class utils():
                 if "SIMD" in config and mw is not None:
                     config["SIMD"] = _get_min_valid_simd(mw)
         
-        # 2. Aplica as configurações de recursos fixas (NOVA LÓGICA)
         if fixed_resources and isinstance(fixed_resources, dict):
             print(f"[i] Aplicando configurações de recursos fixos: {fixed_resources}")
             for node_name, config in new_folding.items():
                 if node_name == "Defaults": continue
-                # Itera sobre os tipos de OP definidos no JSON (ex: "MVAU")
                 for op_type_key, resource_config in fixed_resources.items():
-                    # Verifica se o nome do nó contém a chave (ex: "MVAU" em "MVAU_hls_0")
                     if op_type_key in node_name:
                         print(f"    -> Aplicando {resource_config} em {node_name}")
                         config.update(resource_config)
@@ -904,21 +803,9 @@ class utils():
         return diffs
 
     @staticmethod
-    def get_exceeded_resources_flags(resource_diffs):
-        return {
-            "lut_exceed": resource_diffs.get("Total LUTs", 0) < 0,
-            "ff_exceed": resource_diffs.get("FFs", 0) < 0,
-            "bram_exceed": resource_diffs.get("BRAM (36k)", 0) < 0,
-            "dsp_exceed": resource_diffs.get("DSP Blocks", 0) < 0,
-        }
-
-    @staticmethod
     def raise_if_exceeds_limits(resource_diffs):
         exceeded = {res: -diff for res, diff in resource_diffs.items() if diff < 0}
         if exceeded:
-            msg_lines = ["[🚫] Recursos excedidos:"]
-            for res, amount in exceeded.items():
-                msg_lines.append(f"  - {res}: excedido por {amount}")
             return exceeded
         return None
 
@@ -946,81 +833,48 @@ class utils():
                 bufsize=1,
                 env=env
             ) as proc:
-                # Define a função de monitoramento
                 def monitor_output():
                     for line in proc.stdout:
                         output_log.write(line)
                         log_file.write(line)
                         log_file.flush()
 
-                # Inicia a thread
                 t = threading.Thread(target=monitor_output)
                 t.start()
 
-                # Espera o tempo limite
                 t.join(timeout=timeout_sec)
 
-                # Se a thread ainda estiver viva, o processo travou
                 if t.is_alive():
                     proc.kill()
-                    t.join()  # Espera a thread terminar de fato
+                    t.join() 
                     log_file.write("\n⏱️ Build travado ou demorando demais\n")
                     log_file.flush()
                     raise RuntimeError("Build travado ou demorando demais")
 
-        # Aguarda a thread acabar, caso ainda não tenha finalizado
         t.join()
 
-        # Agora é seguro lidar com output e prints
         full_output = output_log.getvalue()
 
         if "Traceback" in full_output or "ValueError" in full_output:
             with open(log_path, "a") as log_file:
                 log_file.write("\n❌ Erro detectado no build\n")
-            print("❌ Erro detectado no build")  # só aqui o print é feito, após a thread
             raise RuntimeError("Erro detectado no build")
 
         return full_output
     
     @staticmethod
     def build_hardware(model_path, build_dir, hw_name, fpga_part, steps, folding_file=None, target_fps=None, **kwargs):
-        """
-        Executa o fluxo de build de hardware do FINN para um modelo ONNX já processado.
-
-        Esta função recebe um caminho para um modelo .onnx e executa as etapas de
-        síntese de hardware definidas, usando a configuração especificada.
-
-        Args:
-            model_path (str): Caminho para o arquivo .onnx pronto para o FINN.
-            build_dir (str): Diretório base onde os resultados do build serão salvos.
-            hw_name (str): Nome específico para esta execução de build, usado para criar um subdiretório.
-            steps (list): Lista de etapas do build do FINN a serem executadas.
-            folding_file (str, optional): Caminho para o arquivo de configuração de folding (.json).
-            target_fps (int, optional): FPS alvo para o otimizador do FINN.
-            **kwargs: Aceita outros argumentos (como topology, quant, run) para compatibilidade
-                    de chamada, mas eles não são usados diretamente aqui.
-        """
-        
-        # A função interna `generate_hardware` foi mantida para encapsular a lógica do FINN.
         def generate_hardware(model_file_local, build_dir_local, target_fps_local, steps_local, folding_file_local, hw_name_local):
-            """Configura e executa o build do FINN."""
-            
-            # Define o diretório de saída específico para este build
             output_dir_for_this_run = os.path.join(build_dir_local, hw_name_local)
 
-            # Remove resultados de uma execução anterior com o mesmo nome para evitar conflitos
             if os.path.exists(output_dir_for_this_run):
                 shutil.rmtree(output_dir_for_this_run)
-                print(f"Diretório de build anterior removido: {output_dir_for_this_run}")
 
-            # Configuração completa do DataflowBuildConfig, como na sua versão original.
-            # Estes parâmetros definem como o FINN deve se comportar.
             cfg_estimates = build.DataflowBuildConfig(
                 output_dir                  = output_dir_for_this_run,
                 folding_config_file         = folding_file_local,
                 target_fps                  = target_fps_local,
                 synth_clk_period_ns         = 10.0,
-                #board                       = "Pynq-Z1",
                 fpga_part                   = fpga_part,
                 split_large_fifos           = True,
                 shell_flow_type             = build_cfg.ShellFlowType.VIVADO_ZYNQ,
@@ -1031,18 +885,12 @@ class utils():
                     build_cfg.DataflowOutputType.RTLSIM_PERFORMANCE,
                 ],
                 steps                       = steps_local,
-                # Parâmetros adicionais da sua implementação original
                 stitched_ip_gen_dcp         = True,
                 rtlsim_batch_size           = 1000,
-                # verbose                   = True, # Descomente para logs mais detalhados
             )
 
-            # Ponto de entrada para a API do FINN que inicia o processo de build
             build.build_dataflow_cfg(model_file_local, cfg_estimates)
 
-        # A chamada para make_onnx foi removida.
-        # A função agora simplesmente chama a sub-função generate_hardware
-        # com os parâmetros recebidos.
         generate_hardware(
             model_file_local=model_path,
             build_dir_local=build_dir,
@@ -1051,25 +899,19 @@ class utils():
             folding_file_local=folding_file,
             hw_name_local=hw_name
         )
-        
+
+# --- Funções de Pipeline ---
+
 def _transform_pipeline_t2(model, build_dir, topology_id, quant_str):
-    """
-    Exporta um modelo PyTorch/Brevitas treinado para o formato QONNX e aplica
-    a sequência completa de transformações do FINN, salvando o resultado
-    a cada etapa principal.
-    """
     print("-> Exportando modelo para ONNX com pipeline completo de transformações...")
     
     model_build_dir = os.path.join(build_dir, f"t{topology_id}_{quant_str}_model_files")
     os.makedirs(model_build_dir, exist_ok=True)
 
-    # --- Definição dos caminhos dos arquivos ---
     temp_export_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_temp_exported.onnx")
     parent_model_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_dataflow_parent.onnx")
     final_dataflow_model_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_finn_ready.onnx")
 
-    # --- Etapa 1: Exportação e Limpeza Inicial ---
-    print("\n--- Etapa 1: Exportação e Limpeza Inicial ---")
     export_qonnx(model, torch.randn(1, 4, 32, 32), export_path=temp_export_path)
     qonnx_cleanup(temp_export_path, out_file=temp_export_path)
     model = ModelWrapper(temp_export_path)
@@ -1080,12 +922,6 @@ def _transform_pipeline_t2(model, build_dir, topology_id, quant_str):
     model = model.transform(GiveReadableTensorNames())
     model = model.transform(RemoveStaticGraphInputs())
     
-    step1_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_step1_initial_tidy.onnx")
-    model.save(step1_path)
-    print(f"   [+] Modelo intermediário salvo em: {step1_path}")
-
-    # --- Etapa 2: Adição de Pré-processamento e Pós-processamento ---
-    print("\n--- Etapa 2: Pré e Pós-processamento ---")
     global_inp_name = model.graph.input[0].name
     model.set_tensor_datatype(global_inp_name, DataType["UINT8"])
     model = model.transform(InsertTopK(k=1))
@@ -1096,12 +932,6 @@ def _transform_pipeline_t2(model, build_dir, topology_id, quant_str):
     model = model.transform(InferDataTypes())
     model = model.transform(RemoveStaticGraphInputs())
 
-    step2_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_step2_pre_post_processing.onnx")
-    model.save(step2_path)
-    print(f"   [+] Modelo intermediário salvo em: {step2_path}")
-
-    # --- Etapa 3: Streamlining e Otimizações de Alto Nível (Lowering) ---
-    print("\n--- Etapa 3: Streamlining e Lowering ---")
     model = model.transform(MoveScalarLinearPastInvariants())
     model = model.transform(Streamline())
     model = model.transform(LowerConvsToMatMul())
@@ -1113,65 +943,32 @@ def _transform_pipeline_t2(model, build_dir, topology_id, quant_str):
     model = model.transform(InferDataLayouts())
     model = model.transform(RemoveUnusedTensors())
 
-    step3_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_step3_streamlined.onnx")
-    model.save(step3_path)
-    print(f"   [+] Modelo intermediário salvo em: {step3_path}")
-
-    # --- Etapa 3.5: Absorção Adicional para Redes Binárias ---
-    # Esta etapa é crucial para garantir que out_scale seja 1.0 nos nós
-    # MultiThreshold antes da conversão para HLS, que é um requisito da
-    # transformação InferThresholdingLayer.
-    print("\n--- Etapa 3.5: Absorção Adicional de Escala ---")
     model = model.transform(absorb.AbsorbMulIntoMultiThreshold())
     model = model.transform(Streamline())
     model = model.transform(InferShapes())
     model = model.transform(FoldConstants())
-    step3_5_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_step3_5_streamlined.onnx")
-    model.save(step3_5_path)
-    print(f"   [+] Modelo intermediário salvo em: {step3_5_path}")
     
-    
-    # --- Etapa 4: Conversão para Camadas de Hardware (HLS) ---
-    print("\n--- Etapa 4: Conversão para Camadas de Hardware ---")
-    
-    # --- CORREÇÃO APLICADA AQUI ---
-    # Extrai o número de bits do peso da string (ex: "1w1a" -> 1)
     try:
         w_bits = int(quant_str.split('w')[0])
     except (ValueError, IndexError):
         raise ValueError(f"Formato de 'quant_str' inválido: '{quant_str}'. Esperado algo como '4w4a'.")
 
-    # Agora a verificação funciona corretamente com o número de bits
     if w_bits == 1:
-        print("   -> Aplicando transformações para modelo binário (1-bit).")
         model = model.transform(to_hw.InferBinaryMatrixVectorActivation())
     else:
-        print(f"   -> Aplicando transformações para modelo quantizado ({w_bits}-bit).")
         model = model.transform(to_hw.InferQuantizedMatrixVectorActivation())
-    # --------------------------------
 
     model = model.transform(to_hw.InferLabelSelectLayer())
     model = model.transform(to_hw.InferThresholdingLayer())
     model = model.transform(to_hw.InferConvInpGen())
     model = model.transform(to_hw.InferStreamingMaxPool())
 
-    step4_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_step4_hw_layers.onnx")
-    model.save(step4_path)
-    print(f"   [+] Modelo intermediário salvo em: {step4_path}")
-
-    # --- Etapa 5: Limpeza Final e Particionamento do Dataflow ---
-    print("\n--- Etapa 5: Particionamento do Dataflow ---")
     model = model.transform(RemoveCNVtoFCFlatten())
     model = model.transform(absorb.AbsorbConsecutiveTransposes())
     model = model.transform(InferDataLayouts())
     
-    step5_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_step5_pre_partition.onnx")
-    model.save(step5_path)
-    print(f"   [+] Modelo pronto para particionamento salvo em: {step5_path}")
-    
     parent_model = model.transform(CreateDataflowPartition())
     parent_model.save(parent_model_path)
-    print(f"   [+] Modelo pai (com nó de dataflow) salvo em: {parent_model_path}")
     
     sdp_node = parent_model.get_nodes_by_op_type("StreamingDataflowPartition")[0]
     sdp_node = getCustomOp(sdp_node)
@@ -1181,68 +978,85 @@ def _transform_pipeline_t2(model, build_dir, topology_id, quant_str):
 
     os.remove(temp_export_path)
 
-    print(f"\n[✓] Modelo ONNX final pronto para o FINN salvo em: {final_dataflow_model_path}")
     return final_dataflow_model_path
 
 def _transform_pipeline_cnv(model, build_dir, topology_id, quant_str):
-    """
-    Pipeline de transformação FINN específico para a topologia CNV (ex: SOYBEAN),
-    recriado a partir do script de referência cnv.py.
-    """
+    from qonnx.transformation.merge_onnx_models import MergeONNXModels
+    from finn.util.pytorch import ToTensor
+    
     print(f"-> Aplicando pipeline de transformação para Topologia CNV (ID: {topology_id})...")
+
+    # Parsing das quantizações para nomes de arquivos (ex: 2w_2a)
+    q_parts = quant_str.replace('a', '').replace('w', '').split('_')
+    q_val = q_parts[0] if len(q_parts) > 0 else "unknown"
+    a_val = q_parts[1] if len(q_parts) > 1 else q_val
 
     model_build_dir = os.path.join(build_dir, f"t{topology_id}w{quant_str}_model_files")
     os.makedirs(model_build_dir, exist_ok=True)
 
-    # --- Definição dos caminhos dos arquivos ---
-    temp_export_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_temp_exported.onnx")
-    parent_model_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_dataflow_parent.onnx")
+    temp_export_path = os.path.join(model_build_dir, f"temp_exported.onnx")
     final_dataflow_model_path = os.path.join(model_build_dir, f"t{topology_id}_{quant_str}_finn_ready.onnx")
 
-    # --- Etapa 1: Exportação e Limpeza Inicial ---
-    print("\n--- Etapa 1: Exportação Inicial e Tidy Up ---")
-    # Modelos CNV geralmente usam input shape (1, 3, 32, 32) para imagens coloridas
     export_qonnx(model, torch.randn(1, 3, 32, 32), export_path=temp_export_path)
     qonnx_cleanup(temp_export_path, out_file=temp_export_path)
     model = ModelWrapper(temp_export_path)
     model = model.transform(ConvertQONNXtoFINN())
+    
     model = model.transform(InferShapes())
     model = model.transform(FoldConstants())
     model = model.transform(GiveUniqueNodeNames())
     model = model.transform(GiveReadableTensorNames())
     model = model.transform(InferDataTypes())
     model = model.transform(RemoveStaticGraphInputs())
-    model.save(final_dataflow_model_path)
-    print(f"   [✓] Etapa 1 concluída.")
 
-    print(f"\n[✓] Modelo ONNX final (CNV) pronto para o FINN salvo em: {final_dataflow_model_path}")
+    global_inp_name = model.graph.input[0].name
+    ishape = model.get_tensor_shape(global_inp_name)
+    
+    totensor_pyt = ToTensor()
+    chkpt_preproc_name = os.path.join(model_build_dir, "preproc.onnx")
+    export_qonnx(totensor_pyt, torch.randn(ishape), chkpt_preproc_name)
+    qonnx_cleanup(chkpt_preproc_name, out_file=chkpt_preproc_name)
+    
+    pre_model = ModelWrapper(chkpt_preproc_name)
+    pre_model = pre_model.transform(ConvertQONNXtoFINN())                     
+
+    model = model.transform(MergeONNXModels(pre_model))
+    
+    global_inp_name = model.graph.input[0].name
+    model.set_tensor_datatype(global_inp_name, DataType["UINT8"])
+
+    model = model.transform(InsertTopK(k=1))
+
+    model = model.transform(InferShapes())
+    model = model.transform(FoldConstants())
+    model = model.transform(GiveUniqueNodeNames())
+    model = model.transform(GiveReadableTensorNames())
+    model = model.transform(InferDataTypes())
+    model = model.transform(RemoveStaticGraphInputs())
+
+    model.save(final_dataflow_model_path)
+    
+    # Limpeza de arquivo temporário
+    if os.path.exists(temp_export_path):
+        os.remove(temp_export_path)
+
     return final_dataflow_model_path
 
-# ==============================================================================
-# NOVAS FUNÇÕES DE PIPELINE (para modelos pré-treinados)
-# ==============================================================================
-
 def _transform_pipeline_mnist(model, build_dir, topology_id, quant_str):
-    """
-    Pipeline de transformação FINN para o modelo TFC (MNIST), adaptado de tfc.py.
-    """
     print(f"-> Aplicando pipeline de transformação para Topologia TFC (ID: {topology_id})...")
 
     model_build_dir = os.path.join(build_dir, f"{topology_id}_{quant_str}_model_files")
     os.makedirs(model_build_dir, exist_ok=True)
     
-    # Define os nomes dos arquivos intermediários
     base_filename = f"{topology_id}_{quant_str}"
     initial_model_path = os.path.join(model_build_dir, f"{base_filename}_initial.onnx")
     final_model_path = os.path.join(model_build_dir, f"{base_filename}_finn_ready.onnx")
 
-    # Exporta o modelo Brevitas para ONNX
     export_qonnx(model, torch.randn(1, 1, 28, 28), initial_model_path)
     qonnx_cleanup(initial_model_path, out_file=initial_model_path)
     
     model = ModelWrapper(initial_model_path)
     
-    # Aplica a sequência completa de transformações do tfc.py
     model = model.transform(ConvertQONNXtoFINN())
     model = model.transform(InferShapes())
     model = model.transform(FoldConstants())
@@ -1251,13 +1065,9 @@ def _transform_pipeline_mnist(model, build_dir, topology_id, quant_str):
     model = model.transform(InferDataTypes())
     model = model.transform(RemoveStaticGraphInputs())
     
-    # Pre-processing (ToTensor) e Post-processing (TopK)
-    # Nota: pulamos a fusão explícita com o modelo ToTensor para simplificar,
-    # mas garantimos a anotação de dados de entrada correta.
     model.set_tensor_datatype(model.graph.input[0].name, DataType["UINT8"])
     model = model.transform(InsertTopK(k=1))
     
-    # Streamlining
     model = model.transform(Streamline())
     model = model.transform(ConvertBipolarMatMulToXnorPopcount())
     model = model.transform(absorb.AbsorbAddIntoMultiThreshold())
@@ -1267,7 +1077,6 @@ def _transform_pipeline_mnist(model, build_dir, topology_id, quant_str):
     model = model.transform(InferDataLayouts())
     model = model.transform(RemoveUnusedTensors())
     
-    # Conversão para camadas de hardware
     w_bits, a_bits = [int(b.replace('w', '').replace('a', '')) for b in quant_str.split('_')]
     if w_bits == 1 and a_bits == 1:
         model = model.transform(to_hw.InferBinaryMatrixVectorActivation())
@@ -1278,21 +1087,14 @@ def _transform_pipeline_mnist(model, build_dir, topology_id, quant_str):
     model = model.transform(to_hw.InferThresholdingLayer())
     model = model.transform(Streamline())
 
-    # Particionamento do Dataflow
     parent_model = model.transform(CreateDataflowPartition())
     sdp_node = getCustomOp(parent_model.get_nodes_by_op_type("StreamingDataflowPartition")[0])
     dataflow_model_path = sdp_node.get_nodeattr("model")
     
     shutil.copy(dataflow_model_path, final_model_path)
-    print(f"\n[✓] Modelo ONNX final (MNIST) pronto para o FINN salvo em: {final_model_path}")
     return final_model_path
 
-
 def _transform_pipeline_cifar10(model, build_dir, topology_id, quant_str):
-    """
-    Pipeline de transformação FINN para o modelo CNV (CIFAR-10), implementando
-    corretamente a lógica completa (comentada) do script cnv.py.
-    """
     print(f"-> Aplicando pipeline de transformação COMPLETO para Topologia CNV (ID: {topology_id})...")
 
     model_build_dir = os.path.join(build_dir, f"{topology_id}_{quant_str}_model_files")
@@ -1302,14 +1104,10 @@ def _transform_pipeline_cifar10(model, build_dir, topology_id, quant_str):
     initial_model_path = os.path.join(model_build_dir, f"{base_filename}_initial.onnx")
     final_model_path = os.path.join(model_build_dir, f"{base_filename}_finn_ready.onnx")
     
-    # Exporta o modelo Brevitas para ONNX (input de CIFAR-10 é 3x32x32)
     export_qonnx(model, torch.randn(1, 3, 32, 32), initial_model_path)
     qonnx_cleanup(initial_model_path, out_file=initial_model_path)
     model = ModelWrapper(initial_model_path)
     
-    # --- Início da Implementação da Lógica Comentada ---
-    
-    # 1. Limpeza inicial e conversão para o dialeto FINN
     model = model.transform(ConvertQONNXtoFINN())
     model = model.transform(InferShapes())
     model = model.transform(FoldConstants())
@@ -1317,12 +1115,10 @@ def _transform_pipeline_cifar10(model, build_dir, topology_id, quant_str):
     model = model.transform(GiveReadableTensorNames())
     model = model.transform(RemoveStaticGraphInputs())
 
-    # 2. Pré-processamento (anotação de tipo de dado) e Pós-processamento (Top-1)
     model.set_tensor_datatype(model.graph.input[0].name, DataType["UINT8"])
     model = model.transform(InsertTopK(k=1))
     model.save(final_model_path)
 
-    print(f"\n[✓] Modelo ONNX final (CIFAR-10) pronto para o FINN salvo em: {final_model_path}")
     return final_model_path
 
 def get_finn_ready_model(model_info, build_dir):
@@ -1331,14 +1127,21 @@ def get_finn_ready_model(model_info, build_dir):
     FINN correspondente, usando o dicionário model_info.
     """
     topology_id = model_info["topology_id"]
-    quant = model_info["quant"]
-    quant_str = f"{quant}w_{quant}a" # Formato para nomear arquivos
+    
+    if "weight_quant" in model_info and "act_quant" in model_info:
+        w_quant = model_info["weight_quant"]
+        a_quant = model_info["act_quant"]
+    else:
+        w_quant = model_info["quant"]
+        a_quant = model_info["quant"]
+
+    quant_str = f"{w_quant}w_{a_quant}a" 
     
     pytorch_model = None
     loader = model_info.get("loader")
     source = model_info.get("source")
 
-    print(f"-> Carregando modelo '{topology_id}' (Loader: {loader}, Source: {source})")
+    print(f"-> Carregando modelo '{topology_id}' (Loader: {loader}, Source: {source}, Config: {quant_str})")
 
     if loader == "hara_internal":
         model_path = model_info["model_path"]
@@ -1346,19 +1149,21 @@ def get_finn_ready_model(model_info, build_dir):
     
     elif loader == "brevitas_example":
         model_name = model_info["model_name"]
-        full_model_name = f"{model_name}_{quant}W{quant}A"
+        full_model_name = f"{model_name}_{w_quant}W{a_quant}A"
 
         if source == "pretrained":
-            # Caso especial: baixa o modelo pré-treinado
-            print(f"   -> Baixando modelo pré-treinado: {full_model_name}")
-            pytorch_model = get_test_model_trained(model_name, quant, quant)
+            pytorch_model = get_test_model_trained(model_name, w_quant, a_quant)
         
         elif source == "local_checkpoint":
-            # Carrega de um checkpoint local .tar
             checkpoint_path = model_info["checkpoint_path"]
             from brevitas_examples.bnn_pynq.models import model_with_cfg
             from brevitas_examples.bnn_pynq.extractor import ModelExtractor
-            model_arch, _ = model_with_cfg(full_model_name, pretrained=False)
+            
+            try:
+                model_arch, _ = model_with_cfg(full_model_name, pretrained=False)
+            except KeyError:
+                model_arch, _ = model_with_cfg(model_name, pretrained=False) 
+
             extractor = ModelExtractor(model=model_arch,
                                        optimizer=None,
                                        checkpoints_dir_path=None,
@@ -1374,16 +1179,16 @@ def get_finn_ready_model(model_info, build_dir):
     if pytorch_model is None:
         raise RuntimeError("Falha ao carregar ou baixar o modelo Pytorch.")
 
-    # Mapeia o topology_id para a função de pipeline correta
     pipeline_map = {
+        "SAT6_T1": _transform_pipeline_t2,
         "SAT6_T2": _transform_pipeline_t2,
         "MNIST_TFC": _transform_pipeline_mnist,
         "CIFAR10_CNV": _transform_pipeline_cifar10,
         "SOYBEAN_CNV": _transform_pipeline_cnv,
+        "GRAPE_CNV": _transform_pipeline_cnv,
     }
     selected_pipeline = pipeline_map.get(topology_id)
     if selected_pipeline is None:
         raise ValueError(f"Nenhum pipeline de transformação FINN definido para o topology_id: '{topology_id}'")
         
-    # Executa o pipeline de transformação e retorna o caminho do ONNX final
     return selected_pipeline(pytorch_model, build_dir, topology_id, quant_str)

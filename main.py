@@ -4,7 +4,7 @@ import os
 import subprocess
 from datetime import datetime
 
-def create_main_build_dir(base_dir="hw/builds"):
+def create_main_build_dir(base_dir="hw/builds"): # <-- DEIXE ESTE COMO 'hw/builds'
     """Cria um diretório de build único para a execução atual."""
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     build_dir = os.path.join(base_dir, f"run_{timestamp}")
@@ -12,7 +12,7 @@ def create_main_build_dir(base_dir="hw/builds"):
     print(f"Diretório principal da execução: {build_dir}")
     return build_dir
 
-def find_latest_build_dir(base_dir="hw/builds"):
+def find_latest_build_dir(base_dir="sw/builds"): # <-- MUDANÇA AQUI
     """Encontra o diretório de build mais recente para usar na Fase 2."""
     try:
         subdirs = [os.path.join(base_dir, d) for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
@@ -90,6 +90,7 @@ def main():
         print("=======================================================")
         
         try:
+            # Chama o script que agora salva em 'sw/builds'
             subprocess.run(["python3", "run_model_optimization.py"], check=True)
         except subprocess.CalledProcessError as e:
             print(f"\n[ERRO] A Fase 1 (otimização de modelo) falhou com o código de saída {e.returncode}.")
@@ -97,9 +98,10 @@ def main():
 
         if args.mode == 'full':
             print("\n[INFO] Fase 1 concluída. Preparando para iniciar a Fase 2...")
-            latest_build_dir = find_latest_build_dir()
+            # Esta função agora procura em 'sw/builds'
+            latest_build_dir = find_latest_build_dir() 
             if not latest_build_dir:
-                print("[ERRO] Não foi possível encontrar o diretório de build da Fase 1.")
+                print("[ERRO] Não foi possível encontrar o diretório de build da Fase 1 em 'sw/builds'.")
                 return
 
             model_pth_path, quant, topology_id = find_model_files(latest_build_dir)
@@ -108,7 +110,7 @@ def main():
                 return
                 
             hw_args = [
-                "--build-dir", latest_build_dir,
+                "--build-dir", latest_build_dir, # Passa o diretório 'sw/builds/run_...'
                 "--input-file", model_pth_path,
                 "--topology-id", str(topology_id),
                 "--quant", str(quant)
@@ -121,7 +123,8 @@ def main():
         if not args.input_file or args.topology_id is None or args.quant is None:
             parser.error("--input-file, --topology-id e --quant são obrigatórios para o modo 'hardware-only'.")
         
-        build_dir = args.build_dir or create_main_build_dir()
+        # O modo 'hardware-only' usará 'hw/builds' (ou o que for passado)
+        build_dir = args.build_dir or create_main_build_dir() 
         
         hw_args = [
             "--build-dir", build_dir,

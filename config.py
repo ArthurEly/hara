@@ -10,34 +10,30 @@ from cnns_classes import t1_quantizedCNN, t2_quantizedCNN
 CLASSIFICATION_CONSTRAINTS = {
     'enabled': True,  # Habilita ou desabilita a Fase 1
     'primary_metric': 'accuracy',  # pode ser 'accuracy', 'f1_score', 'precision', 'recall'
-    'target_value': 0.4, # Ex: acurácia de 92%
+    'target_value': 0.99, # Ex: acurácia de 92%
     'metric_average_mode': 'macro', # 'macro', 'micro', 'weighted' para F1/precision/recall
     'prioritize_class': None # Ex: 2 (prioriza métricas para a classe 2)
 }
 
 # --- Configurações de Treino e Pruning ---
 TRAINING_CONFIG = {
-    'epochs_per_bitwidth': 2,
+    'epochs_per_bitwidth': 50,
     'patience_epochs': 15,
     'learning_rate': 3e-5,
     'batch_size': 512,
     'pruning_enabled': False,
     
     'pruning_strategy': {
-        # Método: 'iterative' (1 por 1, lento, preciso) ou 'percentage' (em lotes, rápido)
         'method': 'percentage', 
-        
-        # Valor usado apenas se o método for 'percentage'.
-        # Remove 5% dos canais/neurônios restantes a cada passo de poda.
         'step_percentage': 0.05 
     }
 }
 
 FINETUNING_CONFIG = {
-    'enabled': False,
-    'epochs': 1,                # Um número menor de épocas é geralmente suficiente
-    'learning_rate': 1e-4,       # Uma taxa de aprendizado menor para um ajuste fino
-    'patience_epochs': 5,         # Paciência para o early stopping do fine-tuning
+    'enabled': True,
+    'epochs': TRAINING_CONFIG['epochs_per_bitwidth'] // 2,
+    'learning_rate': 1e-4,
+    'patience_epochs': TRAINING_CONFIG['patience_epochs'] // 2,
     'max_pruning_finetuning_cycles': -1
 }
 
@@ -48,32 +44,39 @@ TOPOLOGY_MAP = {
 
 # Define as topologias e os níveis de quantização a serem explorados.
 TOPOLOGIES_TO_EXPLORE = [
+    
+    # --- TESTE 1: Impacto dos PESOS (W) ---
+    # Mantém Ativações (A) em 1 bit e varia Pesos (W) de 1 a 8 bits.
+    # O script irá gerar e testar: [1,1], [2,1], [3,1], ..., [8,1]
     {
         'id': "SAT6_T1",
         'tp_class': TOPOLOGY_MAP["SAT6_T1"],
         'quant_strategy': {
-            # [CORRIGIDO] O método agora é 'sweep'
             'method': 'sweep',
-            'sweep_target': 'both', # Pode ser 'weight', 'activation' ou 'both'
-            'start_bits': [2, 2],
-            'end_bits': [8, 8],
+            'sweep_target': 'weight',  # Varia 'w_start' até 'w_end'
+            'start_bits': [1, 1],    # [w_start=1, a_start=1] (a_start é o bit de ativação fixo)
+            'end_bits': [8, 8],      # [w_end=8, a_end=ignorado]
         },
-        # Esta lista é ignorada quando o método é 'sweep'
         'quant_list': [ ]
     },
-    #{
-    #    'id': 1,
-    #    'tp_class': TOPOLOGY_MAP[1],
-    #    'quant_strategy': {
-    #        # [CORRIGIDO] O método agora é 'sweep'
-    #        'method': 'sweep',
-    #        'sweep_target': 'both', # Pode ser 'weight', 'activation' ou 'both'
-    #        'start_bits': [2, 2],
-    #        'end_bits': [8, 8],
-    #    },
-    #    # Esta lista é ignorada quando o método é 'sweep'
-    #    'quant_list': [ ]
-    #},
+
+    # --- TESTE 2: Impacto das ATIVAÇÕES (A) ---
+    # Mantém Pesos (W) em 1 bit e varia Ativações (A) de 1 a 8 bits.
+    # O script irá gerar e testar: [1,1], [1,2], [1,3], ..., [1,8]
+    {
+        'id': "SAT6_T1", 
+        'tp_class': TOPOLOGY_MAP["SAT6_T1"],
+        'quant_strategy': {
+            'method': 'sweep',
+            'sweep_target': 'activation', # Varia 'a_start' até 'a_end'
+            'start_bits': [1, 1],       # [w_start=1, a_start=1] (w_start é o bit de peso fixo)
+            'end_bits': [8, 8],         # [w_end=ignorado, a_end=8]
+        },
+        'quant_list': [ ]
+    },
+    
+    # Você pode adicionar blocos duplicados para a "SAT6_T2" se quiser testá-la também
+    
 ]
 
 # ==============================================================================

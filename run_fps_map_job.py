@@ -18,18 +18,23 @@ def _run_estimate_build(base_build_dir, onnx_model_path, hw_name, topology_id, q
     build_output_dir = os.path.join(base_build_dir, hw_name)
     steps = BUILD_CONFIG['first_run_estimate']['steps']
     
+    # Monta a lista de argumentos básica
     args = [
         "python3", "./hara/run_build.py",
         "--model_path", str(onnx_model_path),
         "--build_dir", str(base_build_dir),
         "--topology", str(topology_id),
-        "--quant", str(quant),
         "--steps", json.dumps(steps),
         "--hw_name", hw_name,
         "--fpga-part", fpga_part,
         "--folding_file", str(folding_path) if folding_path else "",
         "--target_fps", str(target_fps) if target_fps else "None",
     ]
+    
+    # --- CORREÇÃO: Só adiciona --quant se ele não for None ---
+    if quant is not None:
+        args.extend(["--quant", str(quant)])
+    
     log_path = os.path.join(base_build_dir, f"build_{hw_name}.log")
     try:
         utils.run_and_capture(args, log_path=log_path)
@@ -41,7 +46,13 @@ def _run_estimate_build(base_build_dir, onnx_model_path, hw_name, topology_id, q
 
 def generate_map(model_info, base_build_dir, fpga_part):
     topology_id = model_info.get("topology_id")
+    
+    # --- CORREÇÃO: Tenta obter quant, ou weight_quant se quant não existir ---
     quant = model_info.get("quant")
+    if quant is None:
+        # Se for None (modelos mistos), tentamos pegar o de peso apenas para referência
+        quant = model_info.get("weight_quant")
+    
     try:
         master_onnx_path = get_finn_ready_model(model_info, base_build_dir)
         if not master_onnx_path:
@@ -60,6 +71,18 @@ def generate_map(model_info, base_build_dir, fpga_part):
     if not os.path.exists(intermediate_onnx_path):
         print("[✗] ONNX intermediário para reset não encontrado.")
         return
+    
+    # Passa fixed_resources (se houver) para o reset_folding
+    # Precisamos ler o request.json novamente ou passar via argumento, 
+    # mas o utils.reset_folding lê do arquivo se não passado, ou podemos assumir padrão.
+    # Como generate_map não recebe fixed_resources, ele usa o padrão (vazio) ou o que utils achar.
+    # *Melhoria:* Se você quiser que o fixed_resources do request.json seja respeitado aqui,
+    # precisaria passar `request_data` para esta função.
+    # Por enquanto, mantemos como estava, pois o erro relatado era apenas do --quant.
+    
+    # O reset_folding no seu hw_utils.py atualizado já suporta fixed_resources se passado,
+    # mas aqui ele está sendo chamado sem. Se o seu hw_utils.py tenta ler 'request.json' internamente 
+    # (dependendo da implementação que você escolheu), isso funcionará.
     reset_folding = utils.reset_folding(initial_folding, intermediate_onnx_path)
     
     baseline_hw_name = "run1_baseline_folded"
@@ -152,14 +175,10 @@ if __name__ == "__main__":
         request_data = json.load(f)
     
     model_id = request_data.get('model_id')
-    
-    # --- NOVO: Lendo fpga_part diretamente do request.json ---
-    # Adicione um valor padrão caso não esteja no JSON
     fpga_part = request_data.get('fpga_part', 'xc7z020clg400-1') 
     
     if not fpga_part:
         raise ValueError("fpga_part não encontrado no request.json.")
-
 
     try:
         with open('./hara/models/registry_models.yaml', 'r') as f:
@@ -173,7 +192,6 @@ if __name__ == "__main__":
         raise ValueError(f"Modelo '{model_id}' não encontrado no registro.")
         
     print(f"Diretório da análise: {args.build_dir}")
-    print(f"FPGA Part para a análise: {fpga_part}") # Log para confirmar que está pegando
+    print(f"FPGA Part para a análise: {fpga_part}")
     
-    # --- Passa fpga_part lido do JSON para generate_map ---
     generate_map(model_info, args.build_dir, fpga_part)

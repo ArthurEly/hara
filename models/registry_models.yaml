@@ -40,24 +40,86 @@ SAT6_T2W8:
   topology_id: "SAT6_T2"
   quant: 8 
 
-CIFAR10:
+CIFAR10_1W1A:
   loader: "brevitas_example"
   source: "pretrained"
   model_name: "CNV"
   topology_id: "CIFAR10_CNV"
-  quant: 1
+  weight_quant: 1
+  act_quant: 1
 
-SOYBEAN:
+CIFAR10_1W2A:
   loader: "brevitas_example"
-  source: "local_checkpoint" 
-  model_name: "SOYBEAN_CNV"
-  checkpoint_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SOYBEAN_CNV_2W2A_2W2A_20250905_175846/checkpoints/best.tar"
-  topology_id: "SOYBEAN_CNV"
-  quant: 2        
+  source: "pretrained"
+  model_name: "CNV"
+  topology_id: "CIFAR10_CNV"
+  weight_quant: 1
+  act_quant: 2
 
-MNIST:
+CIFAR10_2W2A:
+  loader: "brevitas_example"
+  source: "pretrained"
+  model_name: "CNV"
+  topology_id: "CIFAR10_CNV"
+  weight_quant: 2
+  act_quant: 2  
+
+MNIST_1W1A:
   loader: "brevitas_example"
   source: "pretrained"
   model_name: "TFC" 
   topology_id: "MNIST_TFC"
-  quant: 1
+  weight_quant: 1
+  act_quant: 1
+
+MNIST_1W2A:
+  loader: "brevitas_example"
+  source: "pretrained"
+  model_name: "TFC" 
+  topology_id: "MNIST_TFC"
+  weight_quant: 1
+  act_quant: 2
+
+MNIST_2W2A:
+  loader: "brevitas_example"
+  source: "pretrained"
+  model_name: "TFC" 
+  topology_id: "MNIST_TFC"
+  weight_quant: 2
+  act_quant: 2
+
+SOYBEAN_1W1A:
+  loader: "brevitas_example"
+  source: "local_checkpoint" 
+  model_name: "SOYBEAN_CNV"
+  checkpoint_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/small_SOYBEAN_CNV_1W1A_1W1A_20251208_020343/checkpoints/best.tar"
+  topology_id: "SOYBEAN_CNV"
+  weight_quant: 1
+  act_quant: 1       
+
+SOYBEAN_2W2A:
+  loader: "brevitas_example"
+  source: "local_checkpoint" 
+  model_name: "SOYBEAN_CNV"
+  checkpoint_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/small_SOYBEAN_CNV_2W2A_2W2A_20251208_174054/checkpoints/best.tar"
+  topology_id: "SOYBEAN_CNV"
+  weight_quant: 2
+  act_quant: 2  
+
+GRAPE_1W1A:
+  loader: "brevitas_example"
+  source: "local_checkpoint" 
+  model_name: "GRAPE_CNV"
+  checkpoint_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/GRAPE_CNV_1W1A_1W1A_20260108_233007/checkpoints/best.tar"
+  topology_id: "GRAPE_CNV"
+  weight_quant: 1
+  act_quant: 1
+
+GRAPE_2W2A:
+  loader: "brevitas_example"
+  source: "local_checkpoint" 
+  model_name: "GRAPE_CNV"
+  checkpoint_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/GRAPE_CNV_2W2A_2W2A_20260109_004531/checkpoints/best.tar"
+  topology_id: "GRAPE_CNV"
+  weight_quant: 2
+  act_quant: 2  
