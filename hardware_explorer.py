@@ -7,6 +7,7 @@ import numpy as np
 
 # Importa as ferramentas e as configurações
 from utils.hw_utils import utils, get_finn_ready_model
+from utils.analytic_utils import FinnCycleEstimator
 from config import (
     TARGET_RESOURCE_PERCENTAGES,
     BUILD_CONFIG,
@@ -14,7 +15,7 @@ from config import (
 )
 
 class HardwareExplorer:
-    def __init__(self, build_dir, config, resource_limits, hara_loop_config, simulation_mode=False, fixed_resources=None, fpga_part="xc7z020clg400-1"):
+    def __init__(self, build_dir, config, resource_limits, hara_loop_config, simulation_mode=False, fixed_resources=None, fpga_part="xc7z020clg400-1", hardware_learner=None):
         self.base_build_dir = build_dir
         self.build_config = config
         self.resource_limits_max = resource_limits
@@ -29,7 +30,12 @@ class HardwareExplorer:
         self.fixed_resources = fixed_resources if fixed_resources else {}
         self.fpga_part = fpga_part
 
+        # Hardware Learner (opcional)
+        self.hardware_learner = hardware_learner
+
         print(f"HardwareExplorer inicializado. Resultados em: {self.base_build_dir}")
+        if self.hardware_learner and self.hardware_learner.is_loaded():
+            print("[HardwareExplorer] Hardware Learner ativo.")
 
     # ... [MÉTODOS _run_fake_build e _run_single_build (Mantidos iguais)] ...
     def _run_fake_build(self, onnx_model_path, hw_name, quant, topology_id, steps, folding_path=None, target_fps=None, resource_limits=None):
@@ -213,6 +219,312 @@ class HardwareExplorer:
             
         return map_configs
 
+    # ------------------------------------------------------------------
+    # Método: Mapeia design space teoricamente via FinnCycleEstimator
+    # ------------------------------------------------------------------
+
+    def _map_theoretical_design_space(self, onnx_path: str) -> list:
+        """
+        Gera analiticamente (sem builds) todos os estados válidos de folding
+        usando o FinnCycleEstimator de utils/analytic_utils.py.
+
+        Segue a heurística de paralelismo descrita no paper:
+          - Estado inicial: todos os PEs e SIMDs = 1
+          - A cada passo: aumenta SIMD da camada gargalo (maior latência)
+          - Se SIMD chegou ao máximo: aumenta PE
+          - Para quando o gargalo não pode mais ser reduzido (lat = 1 ciclo)
+
+        Retorna:
+            lista de {
+              'folding': dict,
+              'fps_estimated': float (100 MHz / ciclos_do_gargalo),
+              'onnx_path': str
+            }
+        """
+        print(f"\n📊 [ML] Mapeando design space teórico (FinnCycleEstimator)...")
+        try:
+            estimator = FinnCycleEstimator(onnx_path, debug=False)
+        except Exception as e:
+            print(f"   [!] FinnCycleEstimator falhou: {e}")
+            return []
+
+        cycle_formulas = estimator.get_cycle_formulas()
+        if not cycle_formulas:
+            print("   [!] Nenhuma camada de processamento encontrada no ONNX.")
+            return []
+
+        # Estado inicial de paralelismo
+        simd_state = {name: 1 for name, d in cycle_formulas.items() if "SIMD" in d.get("formula", "")}
+        pe_state   = {name: 1 for name, d in cycle_formulas.items() if "PE"   in d.get("formula", "")}
+        for name in cycle_formulas:
+            if "ConvolutionInputGenerator" in cycle_formulas[name].get("op_type", ""):
+                cycle_formulas[name]["parallel_window"] = 0
+
+        F_CLOCK = 100e6  # 100 MHz
+
+        def _eval(formula, pe, simd):
+            import math
+            try:
+                return eval(formula, {"__builtins__": None, "math": math}, {"PE": pe, "SIMD": simd})
+            except Exception:
+                return float("inf")
+
+        def _compute_layer_cycles():
+            cycles = {}
+            for name, data in cycle_formulas.items():
+                pe   = pe_state.get(name, 1)
+                simd = simd_state.get(name, 1)
+                cycles[name] = _eval(data["formula"], pe, simd)
+            return cycles
+
+        def _current_folding():
+            """Monta o dict de folding com o estado atual de PE/SIMD."""
+            fold = {"Defaults": {"PE": 1, "SIMD": 1}}
+            for name in cycle_formulas:
+                cfg = {}
+                if name in pe_state:   cfg["PE"]   = pe_state[name]
+                if name in simd_state: cfg["SIMD"] = simd_state[name]
+                if cfg:
+                    fold[name] = cfg
+            return fold
+
+        map_configs = []
+        last_bottleneck = None
+        last_cycles = float("inf")
+
+        for _ in range(500):   # limite de segurança
+            layer_cycles = _compute_layer_cycles()
+            bottleneck, bot_cycles = max(layer_cycles.items(), key=lambda kv: kv[1])
+
+            # Registra o estado atual
+            fps_est = F_CLOCK / bot_cycles if bot_cycles > 0 else 0.0
+            map_configs.append({
+                "folding": _current_folding(),
+                "fps_estimated": fps_est,
+                "onnx_path": onnx_path,
+            })
+
+            # Critério de parada
+            if bot_cycles <= 1:
+                break
+            if bottleneck == last_bottleneck and abs(bot_cycles - last_cycles) < 1e-6:
+                break  # gargalo não mudou — sem mais progressão
+
+            last_bottleneck = bottleneck
+            last_cycles = bot_cycles
+
+            # Tenta aumentar SIMD do gargalo
+            data = cycle_formulas[bottleneck]
+            if bottleneck in simd_state:
+                nxt = estimator._find_next_valid_parallelism(
+                    bottleneck, simd_state[bottleneck], data["op_type"], data, "SIMD")
+                if nxt > simd_state[bottleneck]:
+                    simd_state[bottleneck] = nxt
+                    continue
+                # SIMD chegou ao limite: ativa parallel_window se conv
+                if "ConvolutionInputGenerator" in data.get("op_type", "") and data.get("parallel_window", 0) == 0:
+                    cycle_formulas[bottleneck]["parallel_window"] = 1
+                    continue
+
+            # Tenta aumentar PE do gargalo
+            if bottleneck in pe_state:
+                nxt = estimator._find_next_valid_parallelism(
+                    bottleneck, pe_state[bottleneck], data["op_type"], data, "PE")
+                if nxt > pe_state[bottleneck]:
+                    pe_state[bottleneck] = nxt
+                    continue
+
+            # Não há mais otimização possível para o gargalo
+            break
+
+        print(f"   -> {len(map_configs)} estados mapeados. FPS range: "
+              f"[{map_configs[0]['fps_estimated']:.0f}, {map_configs[-1]['fps_estimated']:.0f}]")
+        return map_configs
+
+    # ------------------------------------------------------------------
+    # Método: Loop ML-guided principal (Hardware Explorer do paper)
+    # ------------------------------------------------------------------
+
+    def _perform_ml_guided_loop(self, onnx_path: str, topology_id: str, quant):
+        """
+        Implementa o loop ML-guided descrito no paper:
+          1. Map  — gera todo o design space via FinnCycleEstimator
+          2. Query — prediz recursos e seleciona o candidato de maior FPS dentro do budget
+          3. Build — executa o build real
+          4. Discrepancy — calcula a diferença predito vs. real e identifica o dominant resource
+          5. Fine-tune — re-treina o modelo com o novo ponto (peso elevado)
+          6. Refinamento — queries iterativas para ↑/↓ paralelismo até boundary condition
+        """
+        learner = self.hardware_learner
+        if learner is None or not learner.is_loaded():
+            print("[ML] Hardware Learner não disponível. Usando loop clássico.")
+            self._perform_hara_loop(onnx_path, quant, topology_id)
+            return
+
+        cfg_build = self.build_config['hara_build']
+
+        # ----------------------------------------------------------------
+        # Passo 1: Mapear design space teórico
+        # ----------------------------------------------------------------
+        map_configs = self._map_theoretical_design_space(onnx_path)
+        if not map_configs:
+            print("[ML] Mapa vazio. Abortando exploracão ML-guided.")
+            return
+
+        all_foldings  = [c["folding"]       for c in map_configs]
+        all_fps_est   = [c["fps_estimated"] for c in map_configs]
+
+        print(f"\n🤖 [ML] Iniciando Hardware Explorer ML-guided.")
+        print(f"   Design space: {len(map_configs)} configurações | "
+              f"FPS estimado: [{all_fps_est[0]:.0f}, {all_fps_est[-1]:.0f}]")
+
+        # ----------------------------------------------------------------
+        # Passo 2: Query — prediz recursos para todo o design space
+        # ----------------------------------------------------------------
+        print("\n🔍 [ML] Passo 2: Query do Hardware Learner...")
+        predictions = learner.predict(onnx_path, all_foldings)
+
+        # ----------------------------------------------------------------
+        # Passo 3: Seleciona o candidato de maior FPS dentro do budget
+        # ----------------------------------------------------------------
+        best_idx, best_folding, best_pred = learner.select_best_config(
+            predictions, all_foldings, self.resource_limits_max
+        )
+
+        if best_idx == -1:
+            print("[ML] Nenhuma config predita cabe no budget. "
+                  "Iniciando pelo índice 0 (configuração mínima).")
+            best_idx     = 0
+            best_folding = all_foldings[0]
+            best_pred    = predictions[0]
+
+        # Guarda índice atual no mapa para navegar para cima/baixo depois
+        current_idx = best_idx
+        optimized_build_dir = None
+        optimized_folding   = None
+
+        # ----------------------------------------------------------------
+        # Loop de refinamento (boundary condition)
+        # ----------------------------------------------------------------
+        iteration = 0
+        prev_fit   = None   # True = úlltimo build coube; False = excedeu
+        prev_idx   = None
+
+        while True:
+            iteration += 1
+            folding_to_build = all_foldings[current_idx]
+            fps_to_build     = all_fps_est[current_idx]
+
+            print(f"\n🚀 [ML] Build #{iteration} — Index #{current_idx} "
+                  f"({fps_to_build:.0f} FPS estimado)")
+
+            # Escreve o folding e dispara o build
+            hw_name = f"ml_guided_iter{iteration}_idx{current_idx}"
+            folding_path = os.path.join(self.base_build_dir, f"{hw_name}_folding.json")
+            with open(folding_path, "w") as f:
+                json.dump(folding_to_build, f, indent=2)
+
+            result = self._run_single_build(
+                onnx_path, hw_name, quant, topology_id,
+                cfg_build["steps"],
+                folding_path=folding_path,
+                resource_limits=self.resource_limits_max,
+            )
+            self.run_number += 1
+            build_dir = result.get("build_dir", "")
+
+            # ----------------------------------------------------------------
+            # Passo 4: Extrair recursos reais e calcular discrepância
+            # ----------------------------------------------------------------
+            actual_resources = {}
+            if result["status"] in ("success", "resources_exceeded"):
+                extracted = utils.extract_area_from_rpt(build_dir)
+                if extracted:
+                    actual_resources = extracted
+                else:
+                    # Em simulação ou se o rpt não existir, usa valores do result
+                    for k in ["Total LUTs", "FFs", "BRAM (36k)", "DSP Blocks"]:
+                        actual_resources[k] = result.get(k, 0)
+            elif result["status"] == "crash":
+                # Em crash, assume utilização 200% do dominante do predito
+                for k in ["Total LUTs", "FFs", "BRAM (36k)", "DSP Blocks"]:
+                    actual_resources[k] = self.resource_limits_max.get(k, 0) * 2.0
+
+            # Calcula discrepância apenas se temos os recursos reais
+            dominant = None
+            if actual_resources:
+                disc = learner.calculate_discrepancy(
+                    predictions[current_idx] if current_idx < len(predictions) else best_pred,
+                    actual_resources,
+                    self.resource_limits_max,
+                )
+                dominant = disc["dominant_resource"]
+                dominant_pct = disc["dominant_utilization_pct"]
+
+                # ----------------------------------------------------------------
+                # Passo 5: Fine-tune com o novo ponto real (peso elevado)
+                # ----------------------------------------------------------------
+                learner.fine_tune(
+                    onnx_path,
+                    folding_to_build,
+                    actual_resources,
+                    current_build_weight=10.0,
+                )
+
+            # ----------------------------------------------------------------
+            # Passo 6: Decidir a próxima direção e verificar boundary condition
+            # ----------------------------------------------------------------
+            build_fits = (result["status"] == "success")
+
+            if build_fits:
+                # Salva como melhor acelerador válido até agora
+                optimized_build_dir = build_dir
+                optimized_folding   = folding_to_build
+                print(f"   ✅ [ML] Build coube! Acelerador salvo. Tentando maior paralelismo...")
+
+                # Boundary condition: prev build não coube e este coube
+                if prev_fit is False and abs(current_idx - prev_idx) <= 1:
+                    print("   🎉 [ML] Boundary condition atingida! Configuração ótima encontrada.")
+                    break
+
+                next_idx = current_idx + 1
+            else:
+                print(f"   ❌ [ML] Build excedeu recursos. Reduzindo paralelismo...")
+
+                # Boundary condition: prev build coube e este não coube
+                if prev_fit is True and abs(current_idx - prev_idx) <= 1:
+                    print("   🎉 [ML] Boundary condition atingida! Configuração ótima encontrada.")
+                    break
+
+                next_idx = current_idx - 1
+
+            # Verifica limites do mapa
+            if next_idx < 0 or next_idx >= len(map_configs):
+                print(f"   [ML] Limite do design space atingido (idx={next_idx}).")
+                break
+
+            # Re-query com o modelo fine-tunado para o próximo índice
+            if actual_resources:  # só re-queremos se temos modelo atualizado
+                next_preds = learner.predict(onnx_path, [all_foldings[next_idx]])
+                predictions[next_idx] = next_preds[0]
+
+            prev_fit = build_fits
+            prev_idx = current_idx
+            current_idx = next_idx
+
+            utils.plot_area_usage_from_csv(self.summary_file, self.base_build_dir)
+
+        # ----------------------------------------------------------------
+        # Resultado final
+        # ----------------------------------------------------------------
+        if optimized_folding is not None:
+            print(f"\n✅ [ML] Hardware Explorer concluído. Acelerador ótimo em: {optimized_build_dir}")
+        else:
+            print("\n⚠ [ML] Nenhuma configuração válida encontrada.")
+
+        self.last_valid_folding  = optimized_folding
+        self.last_valid_build_dir = optimized_build_dir
+
     def run_sparse_dse(self, onnx_model_path, model_info, min_fps, max_fps, num_builds, save_builds):
         """
         DSE Esparso com Seleção Baseada em VALOR de FPS e Teto Dinâmico.
@@ -336,7 +648,7 @@ class HardwareExplorer:
 
         print(f"\n✅ DSE Finalizado. {successful_builds}/{num_builds} builds concluídas com sucesso.")
 
-    def run_exploration(self, model_info, target_fps=None, min_fps=0, num_builds=-1, save_builds=True):
+    def run_exploration(self, model_info, target_fps=None, min_fps=0, num_builds=-1, save_builds=True, use_ml_learner=None):
         topology_id = model_info.get("topology_id")
         quant = model_info.get("quant")
         if quant is None: quant = model_info.get("weight_quant", "mixed")
@@ -350,14 +662,22 @@ class HardwareExplorer:
             print(f"[✗] Erro crítico na preparação do modelo: {e}"); return
 
         self.run_number = 1
-        
-        if num_builds != -1:
+
+        # Determina o modo de exploração
+        # use_ml_learner=None -> auto: usa ML-guided se learner estiver carregado
+        ml_active = use_ml_learner if use_ml_learner is not None else (
+            self.hardware_learner is not None and self.hardware_learner.is_loaded()
+        )
+
+        if ml_active:
+            print(f"\n[MODO] Hardware Explorer ML-guided (Hardware Learner ativo).")
+            self._perform_ml_guided_loop(onnx_model_path, topology_id, quant)
+        elif num_builds != -1:
             safe_max_fps = target_fps if target_fps else 999999
             print(f"\n[MODO] DSE Esparso Dinâmico (Baseado em Valor).")
             print(f"       Range FPS: [{min_fps}, {safe_max_fps}]")
             print(f"       Num Builds: {num_builds}")
             print(f"       Salvar Builds: {save_builds}")
-            
             self.run_sparse_dse(onnx_model_path, model_info, min_fps, safe_max_fps, num_builds, save_builds)
         else:
             print(f"\n[MODO] HARA Loop Clássico.")

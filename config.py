@@ -92,6 +92,27 @@ TOPOLOGIES_TO_EXPLORE = [
 ]
 
 # ==============================================================================
+# CONFIGURAÇÕES DO HARDWARE LEARNER (ML-guided exploration)
+# ==============================================================================
+HARDWARE_LEARNER_CONFIG = {
+    # Habilita o loop ML-guided no Hardware Explorer.
+    # Se False, o modo clássico (HARA Loop ou DSE Esparso) é usado.
+    'enabled': False,
+
+    # Caminho para o modelo XGBoost pré-treinado (arquivo .pkl).
+    # Deve ser gerado pelo pipeline de treinamento em ai/main.py.
+    # Exemplo: 'ai/trained_models/hardware_learner_SAT6_T1.pkl'
+    'model_path': None,
+
+    # Habilita o fine-tune online após cada build real.
+    'fine_tune_enabled': True,
+
+    # Peso dado ao build atual durante o fine-tune (histórico recebe peso 1.0).
+    # Valores maiores forçam o modelo a se adaptar mais ao design corrente.
+    'current_build_weight': 10.0,
+}
+
+# ==============================================================================
 # CONFIGURAÇÕES DE RECURSOS E LIMITES
 # ==============================================================================
 # Define os limites máximos de recursos da placa alvo (ex: Pynq-Z1).

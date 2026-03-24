@@ -1,7 +1,8 @@
 import os
 import json
 from hardware_explorer import HardwareExplorer
-from config import BUILD_CONFIG, HARA_LOOP_CONFIG
+from config import BUILD_CONFIG, HARA_LOOP_CONFIG, HARDWARE_LEARNER_CONFIG
+from ai.hardware_learner import HardwareLearner
 
 def start_exploration(build_dir, model_info, resource_limits, simulation_mode=False, fpga_part="xc7z020clg400-1"):    
     request_path = os.path.join(build_dir, "request.json")
@@ -36,14 +37,34 @@ def start_exploration(build_dir, model_info, resource_limits, simulation_mode=Fa
     else:
         print("[AVISO] request.json não encontrado.")
 
+    # ---------------------------------------------------------------
+    # Instancia o Hardware Learner se estiver habilitado
+    # ---------------------------------------------------------------
+    hardware_learner = None
+    hl_cfg = HARDWARE_LEARNER_CONFIG
+    if hl_cfg.get('enabled', False):
+        model_path = hl_cfg.get('model_path')
+        if model_path:
+            hardware_learner = HardwareLearner()
+            try:
+                hardware_learner.load(model_path)
+                print(f"[run] Hardware Learner carregado de: {model_path}")
+            except FileNotFoundError as e:
+                print(f"[run] AVISO: {e}. Continuando sem Hardware Learner.")
+                hardware_learner = None
+        else:
+            print("[run] AVISO: HARDWARE_LEARNER_CONFIG.enabled=True mas model_path=None. "
+                  "Continuando sem Hardware Learner.")
+
     hardware_explorer = HardwareExplorer(
         build_dir=build_dir,
-        config=BUILD_CONFIG, 
+        config=BUILD_CONFIG,
         resource_limits=resource_limits,
         hara_loop_config=HARA_LOOP_CONFIG,
         simulation_mode=simulation_mode,
         fixed_resources=fixed_resources,
-        fpga_part=fpga_part 
+        fpga_part=fpga_part,
+        hardware_learner=hardware_learner,
     )
 
     print("\n--- INICIANDO MÓDULO DE EXPLORAÇÃO DE HARDWARE ---")
