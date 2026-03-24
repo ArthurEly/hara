@@ -4,7 +4,7 @@
 # CONFIGURAÇÕES DE TOPOLOGIA E QUANTIZAÇÃO
 # ==============================================================================
 # Mapeia o ID da topologia para a classe correspondente.
-from cnns_classes import t1_quantizedCNN, t2_quantizedCNN
+from cnns_classes import t1_quantizedCNN, t2_quantizedCNN, MobileNetWrapper
 
 # --- Configurações de Performance de Classificação ---
 CLASSIFICATION_CONSTRAINTS = {
@@ -39,7 +39,8 @@ FINETUNING_CONFIG = {
 
 TOPOLOGY_MAP = {
     "SAT6_T1": t1_quantizedCNN,
-    "SAT6_T2": t2_quantizedCNN
+    "SAT6_T2": t2_quantizedCNN,
+    "MOBILENET": MobileNetWrapper
 }
 
 # Define as topologias e os níveis de quantização a serem explorados.
@@ -77,6 +78,17 @@ TOPOLOGIES_TO_EXPLORE = [
     
     # Você pode adicionar blocos duplicados para a "SAT6_T2" se quiser testá-la também
     
+    # --- TESTE 3: MobileNet ---
+    {
+        'id': "MOBILENET",
+        'tp_class': TOPOLOGY_MAP["MOBILENET"],
+        'quant_strategy': {
+            'method': 'list',
+            'quant_list': [
+                [4, 4], # Test MobileNet with 4-bit weights and 4-bit activations
+            ]
+        }
+    }
 ]
 
 # ==============================================================================

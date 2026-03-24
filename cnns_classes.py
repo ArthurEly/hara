@@ -19,6 +19,9 @@ import torch.nn.functional as F
 import brevitas.nn as qnn
 from brevitas.quant.scaled_int import Int8ActPerTensorFloat
 
+from brevitas_examples.bnn_pynq.models.mobilenet import mobilenet
+import configparser
+
 
 class CommonQuant(ExtendedInjector):
     bit_width_impl_type = BitWidthImplType.CONST
@@ -137,3 +140,25 @@ class t2_quantizedCNN(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc1(x)
         return x 
+
+class MobileNetWrapper(nn.Module):
+    def __init__(self, weight_bit_width, act_bit_width, arch_config=None):
+        super(MobileNetWrapper, self).__init__()
+        
+        # Use a ConfigParser to mimic the behavior of brevitas_examples config reading
+        cfg = configparser.ConfigParser()
+        cfg.add_section('QUANT')
+        cfg.set('QUANT', 'WEIGHT_BIT_WIDTH', str(weight_bit_width))
+        cfg.set('QUANT', 'ACT_BIT_WIDTH', str(act_bit_width))
+        cfg.set('QUANT', 'IN_BIT_WIDTH', str(8)) # standard
+        
+        cfg.add_section('MODEL')
+        # SAT6 typically has 6 classes, adjusting for the default dataset used in HARA
+        cfg.set('MODEL', 'NUM_CLASSES', str(6))
+        # Assuming SAT-6 images have 4 channels (RGB + NIR) as per other models
+        cfg.set('MODEL', 'IN_CHANNELS', str(4))
+        
+        self.model = mobilenet(cfg)
+        
+    def forward(self, x):
+        return self.model(x)

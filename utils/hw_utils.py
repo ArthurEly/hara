@@ -53,6 +53,12 @@ import yaml
 from utils.ml_utils import load_pruned_model
 from brevitas_examples.bnn_pynq.models import model_with_cfg
 from brevitas_examples.bnn_pynq.extractor import ModelExtractor
+import importlib.util
+from brevitas_examples.bnn_pynq.models.cnv_common import FlexibleCNV
+from brevitas_examples.bnn_pynq.models.FC import FlexibleFC
+
+from qonnx.transformation.merge_onnx_models import MergeONNXModels
+from finn.util.pytorch import ToTensor
 
 class utils():
     def __init__(self):
@@ -642,34 +648,82 @@ class utils():
         
         def get_layer_features(path):
             model = onnx.load(path)
+            
+            # --- NOVO: Mapeamento de Shapes dos Tensores ---
+            # Precisamos saber o shape real da entrada para não estourar o SIMD
+            tensor_shapes = {}
+            # Adiciona inputs do grafo (ex: imagem de entrada)
+            for i in model.graph.input:
+                dims = [d.dim_value for d in i.type.tensor_type.shape.dim]
+                tensor_shapes[i.name] = dims
+            # Adiciona value_infos (tensores intermediários)
+            for vi in model.graph.value_info:
+                dims = [d.dim_value for d in vi.type.tensor_type.shape.dim]
+                tensor_shapes[vi.name] = dims
+            # -----------------------------------------------
+
             feats = {}
             for node in model.graph.node:
                 name = node.name
                 op = node.op_type
                 attr = {a.name: helper.get_attribute_value(a) for a in node.attribute}
                 f = {"op_type": op}
+                
+                # Variável para armazenar o limite físico do SIMD detectado
+                simd_limit = None
 
                 if op.startswith("MatrixVectorActivation") or op.startswith("MVAU"):
-                    f["MW"] = int(attr.get("MW", 0))
+                    raw_mw = int(attr.get("MW", 0))
+                    f["MW"] = raw_mw
                     f["MH"] = int(attr.get("MH", 0))
+                    
+                    # --- Lógica de Proteção de Dimensão ---
+                    # Tenta descobrir o tamanho real do canal de entrada olhando o tensor input[0]
+                    if len(node.input) > 0:
+                        input_name = node.input[0]
+                        if input_name in tensor_shapes:
+                            shape = tensor_shapes[input_name]
+                            # Pega a última dimensão (que no layout do FINN stream é o canal/folding)
+                            if shape and len(shape) > 0:
+                                last_dim = shape[-1]
+                                if last_dim > 0:
+                                    simd_limit = last_dim
+                    
+                    # Se não conseguiu detectar pelo tensor, usa o MW como fallback
+                    if simd_limit is None: 
+                        simd_limit = raw_mw
+
                 elif op.startswith("ConvolutionInputGenerator") or op.startswith("Downsampler"):
-                    f["MW"] = int(attr.get("IFMChannels", 0))
+                    val = int(attr.get("IFMChannels", 0))
+                    f["MW"] = val
+                    simd_limit = val # Limite é o número de canais de entrada
+                    
                 elif op.startswith("FMPadding"):
-                    f["MW"] = int(attr.get("NumChannels", 0))
+                    val = int(attr.get("NumChannels", 0))
+                    f["MW"] = val
+                    simd_limit = val
+                    
                 elif op.startswith("Thresholding") or op.startswith("StreamingMaxPool") or op.startswith("StreamingEltwise") or op.startswith("AddStreams") or op.startswith("ChannelwiseOp") or op.startswith("DuplicateStreams") or op.startswith("Globalaccpool"):
                     f["MH"] = int(attr.get("NumChannels", 0))
+                    
                 elif op.startswith("LabelSelect"):
                     f["MH"] = int(attr.get("Labels", 0))
-                elif op.startswith("VectorVectorActivation"):
+                    
+                elif op.startswith("VectorVectorActivation") or op.startswith("VVAU"):
                     k_dims = attr.get("Kernel", [1, 1])
                     f["MW"] = k_dims[0] * k_dims[1]
                     f["MH"] = int(attr.get("NumChannels", 0))
+
+                # Salva o limite calculado para ser usado no modify_folding
+                if simd_limit is not None:
+                    f["SIMD_LIMIT"] = simd_limit
 
                 feats[name] = f
             return feats
 
         def next_divisor(n, current):
             if n is None or current is None or n == 0: return None
+            if current >= n: return None
             for d in range(current + 1, n + 1):
                 if n % d == 0: return d
             return None
@@ -695,7 +749,7 @@ class utils():
                 print(f"\n[DEBUG] --- Processando camada crítica: {layer} ---")
                 
                 if not only_pe and "SIMD" in new_cfg:
-                    dim_simd = f.get("MW")
+                    dim_simd = f.get("SIMD_LIMIT", f.get("MW"))
                     simd0 = new_cfg.get("SIMD")
                     print(f"[DEBUG]     -> Tentando otimizar SIMD: Dimensão (MW) = {dim_simd}, Valor Atual = {simd0}")
                     if dim_simd is not None and simd0 is not None:
@@ -900,8 +954,88 @@ class utils():
             hw_name_local=hw_name
         )
 
-# --- Funções de Pipeline ---
+def load_pruned_model_flexible(model_path, topology_id, w_quant, a_quant, in_bit_width=8):
+    """
+    Carrega um modelo prunado (FlexibleCNV ou FlexibleFC) lendo a configuração
+    salva no arquivo _config.py adjacente ao .pth.
+    """
+    # 1. Localizar o arquivo de configuração (_config.py)
+    config_path = model_path.replace(".pth", "_config.py")
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Configuração do modelo prunado não encontrada: {config_path}")
 
+    # 2. Carregar a configuração dinamicamente como um módulo Python
+    spec = importlib.util.spec_from_file_location("pruned_config", config_path)
+    pruned_config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pruned_config)
+
+    model = None
+    
+    # --- Lógica para CNV (Grape, Soybean, Cifar10) ---
+    if "CNV" in topology_id:
+        # Recupera parâmetros do config
+        stage_configs = getattr(pruned_config, 'stage_configs', None)
+        fc_features = getattr(pruned_config, 'fc_features', [])
+        flatten_size = getattr(pruned_config, 'flatten_size', 512) 
+        conv_padding = getattr(pruned_config, 'conv_padding', 1) 
+        
+        # --- Lógica melhorada para número de classes ---
+        # 1. Tenta ler do arquivo _config.py (gerado pelo novo pruner)
+        num_classes = getattr(pruned_config, 'num_classes', None)
+        
+        # 2. Se não existir no config, usa o fallback hardcoded
+        if num_classes is None:
+            num_classes = 10 
+            if "GRAPE" in topology_id:
+                num_classes = 4
+            elif "SOYBEAN" in topology_id:
+                num_classes = 3
+
+        print(f"   -> Reconstruindo FlexibleCNV: Classes={num_classes}, Padding={conv_padding}, Flatten={flatten_size}")
+        
+        model = FlexibleCNV(
+            num_classes=num_classes,
+            weight_bit_width=w_quant,
+            act_bit_width=a_quant,
+            in_bit_width=in_bit_width,
+            in_ch=3,
+            stage_configs=stage_configs,
+            fc_features=fc_features,
+            flatten_size=flatten_size,
+            conv_padding=conv_padding
+        )
+
+    # --- Lógica para FC (TFC / MNIST) ---
+    elif "TFC" in topology_id or "FC" in topology_id:
+        out_features_list = getattr(pruned_config, 'out_features_list', [])
+        
+        print(f"   -> Reconstruindo FlexibleFC: Layers={out_features_list}")
+
+        model = FlexibleFC(
+            num_classes=10,
+            weight_bit_width=w_quant,
+            act_bit_width=a_quant,
+            in_bit_width=in_bit_width, # TFC usa entrada binária
+            in_channels=1,
+            out_features_list=out_features_list,
+            in_features_shape=(28, 28)
+        )
+
+    # 3. Carregar os pesos treinados
+    if model:
+        checkpoint = torch.load(model_path, map_location='cpu')
+        # Verifica se é um checkpoint completo ou apenas state_dict
+        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+            state_dict = checkpoint['state_dict']
+        else:
+            state_dict = checkpoint
+            
+        model.load_state_dict(state_dict)
+        return model
+    else:
+        raise ValueError(f"Topologia {topology_id} não suportada para carregamento flexível.")
+    
+# --- Funções de Pipeline ---
 def _transform_pipeline_t2(model, build_dir, topology_id, quant_str):
     print("-> Exportando modelo para ONNX com pipeline completo de transformações...")
     
@@ -980,10 +1114,7 @@ def _transform_pipeline_t2(model, build_dir, topology_id, quant_str):
 
     return final_dataflow_model_path
 
-def _transform_pipeline_cnv(model, build_dir, topology_id, quant_str):
-    from qonnx.transformation.merge_onnx_models import MergeONNXModels
-    from finn.util.pytorch import ToTensor
-    
+def _transform_pipeline_cnv(model, build_dir, topology_id, quant_str):    
     print(f"-> Aplicando pipeline de transformação para Topologia CNV (ID: {topology_id})...")
 
     # Parsing das quantizações para nomes de arquivos (ex: 2w_2a)
@@ -1033,7 +1164,9 @@ def _transform_pipeline_cnv(model, build_dir, topology_id, quant_str):
     model = model.transform(GiveReadableTensorNames())
     model = model.transform(InferDataTypes())
     model = model.transform(RemoveStaticGraphInputs())
-
+    
+    model = model.transform(to_hw.InferVectorVectorActivation())
+    
     model.save(final_dataflow_model_path)
     
     # Limpeza de arquivo temporário
@@ -1065,9 +1198,31 @@ def _transform_pipeline_mnist(model, build_dir, topology_id, quant_str):
     model = model.transform(InferDataTypes())
     model = model.transform(RemoveStaticGraphInputs())
     
-    model.set_tensor_datatype(model.graph.input[0].name, DataType["UINT8"])
-    model = model.transform(InsertTopK(k=1))
+    global_inp_name = model.graph.input[0].name
+    ishape = model.get_tensor_shape(global_inp_name)
     
+    totensor_pyt = ToTensor()
+    chkpt_preproc_name = os.path.join(model_build_dir, "preproc.onnx")
+    export_qonnx(totensor_pyt, torch.randn(ishape), chkpt_preproc_name)
+    qonnx_cleanup(chkpt_preproc_name, out_file=chkpt_preproc_name)
+    
+    pre_model = ModelWrapper(chkpt_preproc_name)
+    pre_model = pre_model.transform(ConvertQONNXtoFINN())                     
+
+    model = model.transform(MergeONNXModels(pre_model))
+    
+    global_inp_name = model.graph.input[0].name
+    model.set_tensor_datatype(global_inp_name, DataType["UINT8"])
+
+    model = model.transform(InsertTopK(k=1))
+    model = model.transform(InferShapes())
+    model = model.transform(FoldConstants())
+    model = model.transform(GiveUniqueNodeNames())
+    model = model.transform(GiveReadableTensorNames())
+    model = model.transform(InferDataTypes())
+    model = model.transform(RemoveStaticGraphInputs())
+    
+    model = model.transform(MoveScalarLinearPastInvariants())
     model = model.transform(Streamline())
     model = model.transform(ConvertBipolarMatMulToXnorPopcount())
     model = model.transform(absorb.AbsorbAddIntoMultiThreshold())
@@ -1084,8 +1239,8 @@ def _transform_pipeline_mnist(model, build_dir, topology_id, quant_str):
         model = model.transform(to_hw.InferQuantizedMatrixVectorActivation())
         
     model = model.transform(to_hw.InferLabelSelectLayer())
-    model = model.transform(to_hw.InferThresholdingLayer())
     model = model.transform(Streamline())
+    model = model.transform(to_hw.InferThresholdingLayer())
 
     parent_model = model.transform(CreateDataflowPartition())
     sdp_node = getCustomOp(parent_model.get_nodes_by_op_type("StreamingDataflowPartition")[0])
@@ -1122,13 +1277,10 @@ def _transform_pipeline_cifar10(model, build_dir, topology_id, quant_str):
     return final_model_path
 
 def get_finn_ready_model(model_info, build_dir):
-    """
-    Função principal que carrega/baixa um modelo e aplica o pipeline de transformação
-    FINN correspondente, usando o dicionário model_info.
-    """
     topology_id = model_info["topology_id"]
     
-    if "weight_quant" in model_info and "act_quant" in model_info:
+    # Tratamento de quantização (suporta chaves antigas e novas do YAML)
+    if "weight_quant" in model_info:
         w_quant = model_info["weight_quant"]
         a_quant = model_info["act_quant"]
     else:
@@ -1141,9 +1293,17 @@ def get_finn_ready_model(model_info, build_dir):
     loader = model_info.get("loader")
     source = model_info.get("source")
 
-    print(f"-> Carregando modelo '{topology_id}' (Loader: {loader}, Source: {source}, Config: {quant_str})")
+    print(f"-> Carregando modelo '{topology_id}' (Loader: {loader}, Source: {source})")
 
-    if loader == "hara_internal":
+    # === NOVO LOADER: hara_pruned ===
+    if loader == "hara_pruned":
+        model_path = model_info["model_path"]
+        # Bit width de entrada: 1 para MNIST (TFC), 8 para imagens coloridas (CNV)
+        in_bits = 2 if "TFC" in topology_id else 8
+        pytorch_model = load_pruned_model_flexible(model_path, topology_id, w_quant, a_quant, in_bits)
+    # ================================
+
+    elif loader == "hara_internal":
         model_path = model_info["model_path"]
         pytorch_model = load_pruned_model(model_path)
     
@@ -1159,36 +1319,42 @@ def get_finn_ready_model(model_info, build_dir):
             from brevitas_examples.bnn_pynq.models import model_with_cfg
             from brevitas_examples.bnn_pynq.extractor import ModelExtractor
             
+            # Tenta carregar config pelo nome completo ou apenas nome base
             try:
                 model_arch, _ = model_with_cfg(full_model_name, pretrained=False)
             except KeyError:
                 model_arch, _ = model_with_cfg(model_name, pretrained=False) 
 
-            extractor = ModelExtractor(model=model_arch,
-                                       optimizer=None,
-                                       checkpoints_dir_path=None,
-                                       logger=None,
-                                       args=None)
-            extractor.load_model(checkpoint_path=checkpoint_path)
-            pytorch_model = extractor.model
-        else:
-            raise ValueError(f"Source '{source}' inválido para o loader 'brevitas_example'.")
+            # Usa o Extractor ou carrega direto se for apenas state_dict
+            try:
+                checkpoint = torch.load(checkpoint_path, map_location='cpu')
+                if 'state_dict' in checkpoint:
+                    model_arch.load_state_dict(checkpoint['state_dict'])
+                else:
+                    model_arch.load_state_dict(checkpoint)
+                pytorch_model = model_arch
+            except Exception as e:
+                print(f"Erro ao carregar checkpoint local: {e}")
+                raise e
     else:
         raise ValueError(f"Loader '{loader}' desconhecido.")
 
     if pytorch_model is None:
-        raise RuntimeError("Falha ao carregar ou baixar o modelo Pytorch.")
+        raise RuntimeError("Falha ao carregar o modelo Pytorch.")
 
+    # Seleção do Pipeline de Transformação FINN
     pipeline_map = {
         "SAT6_T1": _transform_pipeline_t2,
         "SAT6_T2": _transform_pipeline_t2,
+        "MOBILENET": _transform_pipeline_mobilenet,
         "MNIST_TFC": _transform_pipeline_mnist,
         "CIFAR10_CNV": _transform_pipeline_cifar10,
-        "SOYBEAN_CNV": _transform_pipeline_cnv,
-        "GRAPE_CNV": _transform_pipeline_cnv,
+        "SOYBEAN_CNV": _transform_pipeline_cnv, # Usa o pipeline CNV genérico
+        "GRAPE_CNV": _transform_pipeline_cnv,    # Usa o pipeline CNV genérico
     }
+    
     selected_pipeline = pipeline_map.get(topology_id)
     if selected_pipeline is None:
-        raise ValueError(f"Nenhum pipeline de transformação FINN definido para o topology_id: '{topology_id}'")
+        raise ValueError(f"Pipeline FINN não encontrado para '{topology_id}'")
         
     return selected_pipeline(pytorch_model, build_dir, topology_id, quant_str)

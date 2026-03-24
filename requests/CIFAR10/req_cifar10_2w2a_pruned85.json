@@ -1,0 +1,27 @@
+{
+  "model_id": "CIFAR10_2W2A_PRUNED_85",
+  "simulation_mode": false,
+  "fpga_part": "xc7a200tsbg484-1",
+
+  "min_fps": 300,        
+  "target_fps": 800,    
+  "num_builds": 1,
+  "save_builds": false,
+
+  "area_constraints": {
+    "Total LUTs": 134600,
+    "FFs": 269200,
+    "BRAM (36k)": 365,
+    "DSP Blocks": 740
+  },
+  "fixed_resources": {
+    "MVAU_hls":{
+      "ram_style": "auto",
+      "resType": "auto"
+    },
+    "MVAU_rtl":{
+      "ram_style": "auto",
+      "resType": "auto"
+    }
+  }
+}

@@ -14,7 +14,6 @@
     "BRAM (36k)": 365,
     "DSP Blocks": 740
   },
-
   "fixed_resources": {
     "MVAU_hls_1": {
       "ram_style": "block",

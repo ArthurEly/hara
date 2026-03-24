@@ -64,6 +64,46 @@ CIFAR10_2W2A:
   weight_quant: 2
   act_quant: 2  
 
+CIFAR10_2W2A_PRUNED_25:
+  loader: "hara_pruned"
+  model_name: "CNV" 
+  topology_id: "CIFAR10_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/CNV_2W2A_2W2A_20260111_132032/model_pruned_25.pth"
+
+CIFAR10_2W2A_PRUNED_50:
+  loader: "hara_pruned"
+  model_name: "CNV" 
+  topology_id: "CIFAR10_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/CNV_2W2A_2W2A_20260111_132032/model_pruned_50.pth"
+
+CIFAR10_2W2A_PRUNED_75:
+  loader: "hara_pruned"
+  model_name: "CNV" 
+  topology_id: "CIFAR10_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/CNV_2W2A_2W2A_20260111_132032/model_pruned_75.pth"
+
+CIFAR10_2W2A_PRUNED_85:
+  loader: "hara_pruned"
+  model_name: "CNV" 
+  topology_id: "CIFAR10_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/CNV_2W2A_2W2A_20260111_132032/model_pruned_85.pth"
+
+CIFAR10_2W2A_PRUNED_90:
+  loader: "hara_pruned"
+  model_name: "CNV" 
+  topology_id: "CIFAR10_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/CNV_2W2A_2W2A_20260111_132032/model_pruned_90.pth"
+
 MNIST_1W1A:
   loader: "brevitas_example"
   source: "pretrained"
@@ -88,6 +128,46 @@ MNIST_2W2A:
   weight_quant: 2
   act_quant: 2
 
+MNIST_2W2A_PRUNED_25:
+  loader: "hara_pruned"
+  model_name: "TFC" 
+  topology_id: "MNIST_TFC"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/TFC_2W2A_2W2A_20260110_174535/model_pruned_25.pth"
+
+MNIST_2W2A_PRUNED_50:
+  loader: "hara_pruned"
+  model_name: "TFC" 
+  topology_id: "MNIST_TFC"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/TFC_2W2A_2W2A_20260110_174535/model_pruned_50.pth"
+
+MNIST_2W2A_PRUNED_75:
+  loader: "hara_pruned"
+  model_name: "TFC" 
+  topology_id: "MNIST_TFC"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/TFC_2W2A_2W2A_20260110_174535/model_pruned_75.pth"
+
+MNIST_2W2A_PRUNED_85:
+  loader: "hara_pruned"
+  model_name: "TFC" 
+  topology_id: "MNIST_TFC"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/TFC_2W2A_2W2A_20260110_174535/model_pruned_85.pth"
+
+MNIST_2W2A_PRUNED_90:
+  loader: "hara_pruned"
+  model_name: "TFC" 
+  topology_id: "MNIST_TFC"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/deps/brevitas/src/brevitas_examples/bnn_pynq/experiments/TFC_2W2A_2W2A_20260110_174535/model_pruned_90.pth"
+
 SOYBEAN_1W1A:
   loader: "brevitas_example"
   source: "local_checkpoint" 
@@ -106,6 +186,46 @@ SOYBEAN_2W2A:
   weight_quant: 2
   act_quant: 2  
 
+SOYBEAN_2W2A_PRUNED_25:
+  loader: "hara_pruned"
+  model_name: "SOYBEAN_CNV" 
+  topology_id: "SOYBEAN_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/small_SOYBEAN_CNV_2W2A_2W2A_20251208_174054/model_pruned_25.pth"
+
+SOYBEAN_2W2A_PRUNED_50:
+  loader: "hara_pruned"
+  model_name: "SOYBEAN_CNV" 
+  topology_id: "SOYBEAN_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/small_SOYBEAN_CNV_2W2A_2W2A_20251208_174054/model_pruned_50.pth"
+
+SOYBEAN_2W2A_PRUNED_75:
+  loader: "hara_pruned"
+  model_name: "SOYBEAN_CNV" 
+  topology_id: "SOYBEAN_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/small_SOYBEAN_CNV_2W2A_2W2A_20251208_174054/model_pruned_75.pth"
+
+SOYBEAN_2W2A_PRUNED_85:
+  loader: "hara_pruned"
+  model_name: "SOYBEAN_CNV" 
+  topology_id: "SOYBEAN_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/small_SOYBEAN_CNV_2W2A_2W2A_20251208_174054/model_pruned_85.pth"
+
+SOYBEAN_2W2A_PRUNED_90:
+  loader: "hara_pruned"
+  model_name: "SOYBEAN_CNV" 
+  topology_id: "SOYBEAN_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/small_SOYBEAN_CNV_2W2A_2W2A_20251208_174054/model_pruned_90.pth"  
+
 GRAPE_1W1A:
   loader: "brevitas_example"
   source: "local_checkpoint" 
@@ -123,3 +243,43 @@ GRAPE_2W2A:
   topology_id: "GRAPE_CNV"
   weight_quant: 2
   act_quant: 2  
+
+GRAPE_2W2A_PRUNED_25:
+  loader: "hara_pruned"
+  model_name: "GRAPE_CNV" 
+  topology_id: "GRAPE_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/GRAPE_CNV_2W2A_2W2A_20260109_004531/model_pruned_25.pth"
+
+GRAPE_2W2A_PRUNED_50:
+  loader: "hara_pruned"
+  model_name: "GRAPE_CNV" 
+  topology_id: "GRAPE_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/GRAPE_CNV_2W2A_2W2A_20260109_004531/model_pruned_50.pth"
+
+GRAPE_2W2A_PRUNED_75:
+  loader: "hara_pruned"
+  model_name: "GRAPE_CNV" 
+  topology_id: "GRAPE_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/GRAPE_CNV_2W2A_2W2A_20260109_004531/model_pruned_75.pth"
+
+GRAPE_2W2A_PRUNED_85:
+  loader: "hara_pruned"
+  model_name: "GRAPE_CNV" 
+  topology_id: "GRAPE_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/GRAPE_CNV_2W2A_2W2A_20260109_004531/model_pruned_85.pth"
+
+GRAPE_2W2A_PRUNED_90:
+  loader: "hara_pruned"
+  model_name: "GRAPE_CNV" 
+  topology_id: "GRAPE_CNV"
+  weight_quant: 2
+  act_quant: 2  
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/GRAPE_CNV_2W2A_2W2A_20260109_004531/model_pruned_90.pth"   
