@@ -1,0 +1,7 @@
+feature,BRAM (36k eq.),DSP Blocks,Total FFs,Total LUT
+IFMChannels,0.0,0.0,0.4551963,0.19252382
+IFMDim,0.0,0.0,0.29439765,0.4979841
+SIMD,0.0,0.0,0.2368207,0.11034637
+depth,0.0,0.0,0.0,0.0
+inWidth,0.0,0.0,0.0,0.0
+inputDataType (bits),0.0,0.0,0.013585323,0.19914572

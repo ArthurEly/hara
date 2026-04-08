@@ -21,3 +21,6 @@ keras_tuner_dir/
 /oracle/retrieval/results_old
 /results
 *.pkl
+/exhaustive_hw_builds
+/fps_campaign_results
+/minhas_configs_mnist

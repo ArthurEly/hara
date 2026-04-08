@@ -43,10 +43,46 @@ area_cols_to_preserve = [
     "Total LUT", "Total FFs", "BRAM (36k eq.)", "DSP Blocks",
     "ConvKernelDim", "Dilation", "Stride", "SRLs", "inWidth", "Padding", "K",
     "Labels", "PE", "inFIFODepths", "outFIFODepths", "numInputVectors",
+    "depth", "impl_style", "ram_style", "resType"
 ]
 
-def clean_dataframe(df_input):
+def clean_dataframe(df_input, df_name_key=""):
     df = df_input.copy()
+
+    # --- FIX: INSERIR DEPTHS REAIS NAS FIFOS VIA MERGE ---
+    if "StreamingFIFO" in df_name_key:
+        fifo_depth_csv = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 
+            "results", "fifo_depth", "exhaustive_fifo_depths.csv"
+        )
+        if os.path.exists(fifo_depth_csv):
+            df_depths = pd.read_csv(fifo_depth_csv)
+            # Chaves para garantir que não vamos cruzar dados de runs diferentes
+            keys = ["model_id", "session", "run_name"]
+            df_depths = df_depths[keys + ["fifo_name", "depth"]]
+            
+            # Remove a coluna depth vazia atual para não duplicar no merge (depth_x, depth_y)
+            if "depth" in df.columns:
+                df = df.drop(columns=["depth"])
+                
+            # Cruza os dados casando as sessões e o nome da instância
+            df = df.merge(
+                df_depths, 
+                how="left", 
+                left_on=keys + ["Submodule Instance"], 
+                right_on=keys + ["fifo_name"]
+            )
+            df.drop(columns=["fifo_name"], inplace=True, errors="ignore")
+            # Preenche apenas as que realmente sobrarem nulas com o default
+            df["depth"] = df["depth"].fillna(2)
+
+    # --- FIX: REMOVER COLUNAS DE VAZAMENTO DE DADOS ANTES TRATAMENTOS ---
+    leakage_cols = [
+        "model_id", "session", "timestamp", "run_name", "run_number", 
+        "is_baseline", "fixed_ram_style", "fixed_resType", 
+        "Submodule Instance", "base_name", "layer_idx"
+    ]
+    df.drop(columns=[c for c in leakage_cols if c in df.columns], inplace=True, errors='ignore')
 
     # Colunas a serem preservadas de certas etapas de limpeza
     existing_area_cols = [col for col in area_cols_to_preserve if col in df.columns]
@@ -120,7 +156,6 @@ def clean_dataframe(df_input):
             original_idx = df.columns.get_loc(cat_col)
 
             # 2. Gerar as colunas dummy para a coluna categórica atual
-            #    Adicionado dtype=int para garantir valores 0/1 em vez de True/False
             dummies = pd.get_dummies(df[cat_col], prefix=cat_col, prefix_sep='_', dtype=int)
 
             # 3. Renomear as colunas dummy para o formato "isColunaValor"
@@ -128,7 +163,11 @@ def clean_dataframe(df_input):
             for dummy_col in dummies.columns:
                 value = dummy_col.split(f"{cat_col}_", 1)[1]
                 clean_value = ''.join(e for e in str(value) if e.isalnum()).capitalize()
-                new_name = f"is{cat_col.capitalize()}{clean_value}"
+                
+                # Preserva o camelCase original da coluna, apenas capitaliza a primeira letra
+                cat_col_pascal = cat_col[0].upper() + cat_col[1:] if cat_col else ""
+                
+                new_name = f"is{cat_col_pascal}{clean_value}"
                 rename_map[dummy_col] = new_name
             dummies.rename(columns=rename_map, inplace=True)
             
@@ -194,7 +233,7 @@ def main_pipeline():
             print(f"\n  Processando arquivo: {csv_file}...")
             try:
                 original_df = pd.read_csv(file_path)
-                cleaned_df, processing_stats = clean_dataframe(original_df)
+                cleaned_df, processing_stats = clean_dataframe(original_df, df_name_key)
                 scenario_cleaned_dfs[df_name_key] = cleaned_df
                 scenario_summary_stats[df_name_key] = processing_stats
                 print(f"  Arquivo '{csv_file}' limpo com sucesso.")
@@ -203,10 +242,9 @@ def main_pipeline():
         if not scenario_cleaned_dfs:
             print(f"ℹ️  Nenhum DataFrame foi limpo com sucesso para o cenário '{scenario_name}'. Operações de salvamento puladas.\n")
             continue
-        # Atualizando o summary_df para incluir a nova estatística
+        
         summary_df = pd.DataFrame(scenario_summary_stats).T
         summary_df = summary_df.reset_index().rename(columns={'index': 'OriginalFile'})
-        # Reordenar colunas do sumário para melhor visualização
         summary_cols_order = ['OriginalFile', 'original_columns', 'removed_constant', 'removed_high_corr', 'removed_missing', 'categorical_encoded', 'final_columns']
         summary_df = summary_df[[col for col in summary_cols_order if col in summary_df.columns]]
         

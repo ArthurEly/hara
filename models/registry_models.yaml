@@ -1,21 +1,21 @@
 SAT6_T1W2:
   loader: "hara_internal"
   source: "local_file"
-  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/T2/sat6-cnn-t1w2.pt"
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/T1/sat6-cnn-t1w2.pt"
   topology_id: "SAT6_T1"
   quant: 2 
 
 SAT6_T1W4:
   loader: "hara_internal"
   source: "local_file"
-  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/T2/sat6-cnn-t1w4.pt"
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/T1/sat6-cnn-t1w4.pt"
   topology_id: "SAT6_T1"
   quant: 4
   
 SAT6_T1W8:
   loader: "hara_internal"
   source: "local_file"
-  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/T2/sat6-cnn-t1w8.pt"
+  model_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/T1/sat6-cnn-t1w8.pt"
   topology_id: "SAT6_T1"
   quant: 8 
 

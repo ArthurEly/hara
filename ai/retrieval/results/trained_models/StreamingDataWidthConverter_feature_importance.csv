@@ -1,0 +1,5 @@
+feature,BRAM (36k eq.),DSP Blocks,Total FFs,Total LUT
+depth,0.0,0.0,0.0,0.0
+inWidth,0.0,0.0,0.0,0.0
+isHLS,0.0,0.0,0.0,0.0
+isRTL,0.0,0.0,1.0,1.0

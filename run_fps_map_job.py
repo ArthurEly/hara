@@ -20,7 +20,7 @@ def _run_estimate_build(base_build_dir, onnx_model_path, hw_name, topology_id, q
     
     # Monta a lista de argumentos básica
     args = [
-        "python3", "./hara/run_build.py",
+        "python3", "run_build.py",
         "--model_path", str(onnx_model_path),
         "--build_dir", str(base_build_dir),
         "--topology", str(topology_id),

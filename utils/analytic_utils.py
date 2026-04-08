@@ -27,7 +27,7 @@ FOLDING_RULES = {
     "FMPadding": {"parameter": "SIMD", "constraint": "NumChannels"},
     "FMPadding_Pixel": {"parameter": "SIMD", "constraint": "NumChannels"},
     "Globalaccpool": {"parameter": "PE", "constraint": "channels"},
-    "Labelselect": {"parameter": "PE", "constraint": "Labels"},
+    "LabelSelect": {"parameter": "PE", "constraint": "Labels"},
     "MVAU": {"parameter": ["PE", "SIMD"], "constraint": ["MH", "MW"]},
     "MatrixVectorActivation": {"parameter": ["PE", "SIMD"], "constraint": ["MH", "MW"]},
     "Pool": {"parameter": "PE", "constraint": "NumChannels"},
@@ -226,11 +226,15 @@ class FinnCycleEstimator:
 
     def _calculate_thresholding_cycles(self, node: onnx.NodeProto) -> dict | None:
         ifm_shape = self._get_tensor_shape(node.input[0])
-        if len(ifm_shape) < 4: return None
+        if len(ifm_shape) == 2:
+            _, channels = ifm_shape
+            fmdim_h, fmdim_w = 1, 1
+        elif len(ifm_shape) >= 4:
+            _, channels, fmdim_h, fmdim_w = ifm_shape[:4]
+        else:
+            return None
         
-        _, channels, fmdim_h, fmdim_w = ifm_shape
         total_elements = channels * 1 * fmdim_h * fmdim_w # batch_size = 1
-        
         return {"formula": f"{total_elements}/PE", "MH": channels}
 
     def _calculate_labelselect_cycles(self, node: onnx.NodeProto) -> dict | None:
@@ -319,7 +323,7 @@ class FinnCycleEstimator:
                 unsupported_nodes.append(f"{node.name} ({op_type})")
 
         if unsupported_nodes:
-            self.logger.warning("\\nAVISO: Os nós a seguir não puderam ser analisados: %s", ", ".d(unsupported_nodes))
+            self.logger.warning("\\nAVISO: Os nós a seguir não puderam ser analisados: %s", ", ".join(unsupported_nodes))
         
         self.logger.debug(f"Fórmulas extraídas: {formulas}")
         return formulas
@@ -479,182 +483,306 @@ class FinnCycleEstimator:
         plt.savefig("bottleneck_evolution.png")
 
 
-def main():
-    """Função principal para executar a análise."""
-    # --- CONTROLE DE DEPURAÇÃO ---
-    # Para ver as mensagens de depuração, mude DEBUG_MODE para True
-    DEBUG_MODE = False
+def modify_folding_analytical(current_folding, analyzer, cycle_formulas):
+    import copy
+    new_folding = copy.deepcopy(current_folding)
+    
+    layer_cycles = {}
+    for layer_name, data in cycle_formulas.items():
+        formula = data['formula']
+        cfg = current_folding.get(layer_name, {})
+        defaults = current_folding.get("Defaults", {"PE": 1, "SIMD": 1})
+        
+        pe = cfg.get("PE", defaults.get("PE", 1))
+        simd = cfg.get("SIMD", defaults.get("SIMD", 1))
+        current_params = {"PE": pe, "SIMD": simd}
+        
+        if "ConvolutionInputGenerator" in data.get("op_type", "") and cfg.get("parallel_window", 0) == 1:
+            cycles = 2
+        else:
+            cycles = analyzer._eval_formula(formula, current_params)
+        
+        layer_cycles[layer_name] = cycles
 
-    # Configuração do logger para imprimir no console
-    logging.basicConfig(
-        level=logging.INFO if not DEBUG_MODE else logging.DEBUG,
-        format='[%(levelname)s] %(message)s',
+    if not layer_cycles:
+        return new_folding
+
+    sorted_layers = sorted(layer_cycles.items(), key=lambda item: item[1], reverse=True)
+    bottleneck_name, bottleneck_cycles = sorted_layers[0]
+
+    if bottleneck_cycles <= 1:
+        return new_folding
+
+    data = cycle_formulas.get(bottleneck_name, {})
+    op_type = data.get("op_type", "")
+    cfg = new_folding.get(bottleneck_name)
+    if not cfg:
+        new_folding[bottleneck_name] = {"PE": 1, "SIMD": 1, "ram_style": "auto", "resType": "auto"}
+        cfg = new_folding[bottleneck_name]
+
+    current_pe = cfg.get("PE", 1)
+    current_simd = cfg.get("SIMD", 1)
+
+    if "SIMD" in data.get("formula", ""):
+        if "MVAU" in op_type or "MatrixVectorActivation" in op_type:
+            next_simd = analyzer._find_next_valid_parallelism(bottleneck_name, current_simd, op_type, data, "SIMD")
+            if next_simd > current_simd:
+                cfg["SIMD"] = next_simd
+            else:
+                next_pe = analyzer._find_next_valid_parallelism(bottleneck_name, current_pe, op_type, data, "PE")
+                if next_pe > current_pe:
+                    cfg["PE"] = next_pe
+        elif "ConvolutionInputGenerator" in op_type:
+            next_simd = analyzer._find_next_valid_parallelism(bottleneck_name, current_simd, op_type, data, "SIMD")
+            if next_simd > current_simd:
+                cfg["SIMD"] = next_simd
+            else:
+                if cfg.get("parallel_window", 0) == 0:
+                    cfg["parallel_window"] = 1
+        else:
+            next_simd = analyzer._find_next_valid_parallelism(bottleneck_name, current_simd, op_type, data, "SIMD")
+            if next_simd > current_simd:
+                cfg["SIMD"] = next_simd
+    elif "PE" in data.get("formula", ""):
+        next_pe = analyzer._find_next_valid_parallelism(bottleneck_name, current_pe, op_type, data, "PE")
+        if next_pe > current_pe:
+            cfg["PE"] = next_pe
+
+    return new_folding
+
+
+def _get_base_onnx(request_path, base_build_dir):
+    import json, yaml, os
+    from utils.hw_utils import get_finn_ready_model
+    import run_fps_map_job
+    
+    with open(request_path, 'r') as f:
+        request_data = json.load(f)
+        
+    model_id = request_data.get('model_id')
+    fpga_part = request_data.get('fpga_part', 'xc7z020clg400-1')
+    
+    with open('models/registry_models.yaml', 'r') as f:
+        model_registry = yaml.safe_load(f)
+        
+    model_info = model_registry.get(model_id)
+    quant = model_info.get("quant", model_info.get("weight_quant"))
+    
+    logger.info("Preparando ONNX principal (build zero)...")
+    master_onnx_path = get_finn_ready_model(model_info, base_build_dir)
+    
+    est_dir_1 = run_fps_map_job._run_estimate_build(
+        base_build_dir, master_onnx_path, "run0_get_initial_fold", 
+        model_info.get("topology_id"), quant, fpga_part, target_fps=1
     )
     
-    ONNX_MODEL_PATH = "/home/arthurely/Desktop/finn_chi2p/hara/hw/builds/2025-09-13_11-27-33_SAT6_T2_5bac1f38/SAT6_T2w4_run3/intermediate_models/step_generate_estimate_reports.onnx"
-    
+    intermediate_onnx_path = os.path.join(est_dir_1, "intermediate_models", "step_generate_estimate_reports.onnx")
+    auto_folding_json_path = os.path.join(est_dir_1, "auto_folding_config.json")
+    return intermediate_onnx_path, auto_folding_json_path
+
+
+def analyze_and_plot(onnx_model_path, debug_mode):
+    """Executa a lógica original de simular 20-100 iterações em structs efêmeros para plotar FPS."""
     try:
-        # 1. Inicializa o analisador
-        analyzer = FinnCycleEstimator(ONNX_MODEL_PATH, debug=DEBUG_MODE)
-        
-        # 2. Obtém as fórmulas de ciclo para todas as camadas relevantes
+        analyzer = FinnCycleEstimator(onnx_model_path, debug=debug_mode)
         cycle_formulas = analyzer.get_cycle_formulas()
-        
-        # Verifica se há fórmulas para continuar
         if not cycle_formulas:
             logger.info("Nenhuma camada de processamento foi encontrada. Análise encerrada.")
             return
 
-        # 3. Mapeia o estado de paralelismo para cada camada
         simd_state = {name: 1 for name, data in cycle_formulas.items() if "SIMD" in data.get("formula", "")}
         pe_state = {name: 1 for name, data in cycle_formulas.items() if "PE" in data.get("formula", "")}
         
-        # Adiciona o estado de parallel_window ao dicionário de fórmulas para fácil acesso
         for name in cycle_formulas:
             if "ConvolutionInputGenerator" in cycle_formulas[name].get("op_type", ""):
                 cycle_formulas[name]["parallel_window"] = 0
                 
-        # Armazena os dados para plotagem
-        bottleneck_data_iterations = []
-        bottleneck_data_cycles = []
-        bottleneck_data_names = []
-        
-        # Armazena o gargalo para detectar loops
-        last_bottleneck_name = None
-        last_bottleneck_cycles = np.inf
-        
-        # Dicionário para rastrear os ciclos de todas as camadas
+        bottleneck_data_iterations, bottleneck_data_cycles, bottleneck_data_names = [], [], []
+        last_bottleneck_name, last_bottleneck_cycles = None, np.inf
         layer_cycles = {name: 0.0 for name in cycle_formulas.keys()}
 
-        # 4. Inicia a análise de otimização iterativa
-        logger.info("--- Análise de Otimização de Paralelismo (Otimização Incremental) ---")
-        
         iteration = 1
         while True:
-            # 4.1. Recalcula os ciclos de todas as camadas com o estado de paralelismo atual
             for layer_name, data in cycle_formulas.items():
                 formula = data['formula']
-                
-                # Usa os estados de PE e SIMD conforme a fórmula da camada
                 current_params = {"PE": pe_state.get(layer_name, 1), "SIMD": simd_state.get(layer_name, 1)}
-                # Caso especial: se parallel_window está ativo, recalcular com a fórmula paralela
+                
                 if "ConvolutionInputGenerator" in data.get("op_type", "") and data.get("parallel_window", 0) == 1:
-                    model = onnx.load(ONNX_MODEL_PATH)
-                    graph = model.graph
-                    node = next((n for n in graph.node if n.name == layer_name), None)
-                    for attr in node.attribute:
-                        if attr.name == "IFMDim":
-                            ifm_dim_w = helper.get_attribute_value(attr)[0]
-                            ifm_dim_h = helper.get_attribute_value(attr)[1]
-                    
-                    cycles = (data.get("IFMChannels", 1) * ifm_dim_w * ifm_dim_h / current_params["SIMD"]) + 2
+                    cycles = 2
                 else:
                     cycles = analyzer._eval_formula(formula, current_params)
-                
                 layer_cycles[layer_name] = cycles
             
-            # 4.2. Encontra o gargalo principal e a segunda camada mais lenta
             sorted_layers = sorted(layer_cycles.items(), key=lambda item: item[1], reverse=True)
-            logger.debug(f"Ciclos por camada: {layer_cycles}")
             bottleneck_name, bottleneck_cycles = sorted_layers[0]
 
-            next_bottleneck_cycles = 1
-            if len(sorted_layers) > 1:
-                for i in range(1, len(sorted_layers)):
-                    if not np.isclose(sorted_layers[i][1], bottleneck_cycles):
-                        next_bottleneck_cycles = sorted_layers[i][1]
-                        break
-
-            # Adiciona os dados de cada iteração para plotagem
             bottleneck_data_iterations.append(iteration)
             bottleneck_data_cycles.append(bottleneck_cycles)
             bottleneck_data_names.append(bottleneck_name)
             
-            # 4.3. Condição de parada: se a camada gargalo atual tem ciclos <= 1 ou se não pode mais ser otimizada
             if bottleneck_cycles <= 1 or (bottleneck_name == last_bottleneck_name and np.isclose(bottleneck_cycles, last_bottleneck_cycles)):
-                logger.info(f"\n[SUCESSO] Otimização concluída. Todas as camadas atingiram {bottleneck_cycles:.2f} ciclos ou menos.")
+                logger.info(f"\n[SUCESSO] Otimização analítica concluída (Limite atingido).")
                 break
             
             last_bottleneck_name = bottleneck_name
             last_bottleneck_cycles = bottleneck_cycles
 
-            logger.info(f"\n--- Iteração {iteration} ---")
-            logger.info(f"Estado de SIMD: {simd_state}")
-            logger.info(f"Estado de PE: {pe_state}")
-            logger.info(f"Gargalo atual: {bottleneck_name} com {bottleneck_cycles:.2f} ciclos.")
-                                
-            # 4.4. Otimiza o gargalo atual
+            logger.info(f"\n--- Iteração {iteration} --- Gargalo: {bottleneck_name} com {bottleneck_cycles:.2f} ciclos.")
             data = cycle_formulas.get(bottleneck_name, {})
             op_type = data.get('op_type')
             is_parallel_window_active = data.get("parallel_window", 0) == 1
 
             if "SIMD" in data.get("formula", ""):
-                current_pe = pe_state.get(bottleneck_name, 1)
-                current_simd = simd_state.get(bottleneck_name, 1)
+                current_pe, current_simd = pe_state.get(bottleneck_name, 1), simd_state.get(bottleneck_name, 1)
 
                 if "MVAU" in op_type:
                     next_simd_to_try = analyzer._find_next_valid_parallelism(bottleneck_name, current_simd, op_type, data, "SIMD")
-                    
                     if next_simd_to_try > current_simd:
                         simd_state[bottleneck_name] = next_simd_to_try
-                        logger.info(f"SIMD de '{bottleneck_name}' incrementado para o próximo valor válido: {simd_state[bottleneck_name]}")
                     else:
                         next_pe_to_try = analyzer._find_next_valid_parallelism(bottleneck_name, current_pe, op_type, data, "PE")
-                        if next_pe_to_try > current_pe:
-                            pe_state[bottleneck_name] = next_pe_to_try
-                            logger.info(f"SIMD de '{bottleneck_name}' no limite. PE ajustado para: {pe_state[bottleneck_name]}")
-                        else:
-                            logger.info(f"Otimização para '{bottleneck_name}' já no limite. Não há mais otimizações possíveis.")
-                            break
+                        if next_pe_to_try > current_pe: pe_state[bottleneck_name] = next_pe_to_try
+                        else: break
                 elif "ConvolutionInputGenerator" in op_type:
-                    is_simd_at_max = analyzer._find_next_valid_parallelism(bottleneck_name, current_simd, op_type, data, "SIMD") == current_simd
-                    if is_simd_at_max and is_parallel_window_active:
-                        logger.info(f"Otimização para '{bottleneck_name}' já no limite. Não há mais otimizações possíveis.")
-                        break
-                    if is_simd_at_max and not is_parallel_window_active:
-                        cycle_formulas[bottleneck_name]["parallel_window"] = 1
-                        logger.info(f"SIMD de '{bottleneck_name}' no limite. Ativando 'parallel_window'.")
-                        # Forçar a recalcular os ciclos na próxima iteração
-                    else:
-                        next_simd_to_try = analyzer._find_next_valid_parallelism(bottleneck_name, current_simd, op_type, data, "SIMD")
-                        if next_simd_to_try > current_simd:
-                            simd_state[bottleneck_name] = next_simd_to_try
-                            logger.info(f"Ajustando o SIMD de '{bottleneck_name}' para o próximo valor incremental válido: {simd_state[bottleneck_name]}")
-                        else:
-                            logger.info(f"Otimização para '{bottleneck_name}' já no limite. Não há mais otimizações possíveis.")
-                            break
-                else: # Outras camadas que usam apenas SIMD
                     next_simd_to_try = analyzer._find_next_valid_parallelism(bottleneck_name, current_simd, op_type, data, "SIMD")
-                    if next_simd_to_try > current_simd and ("ConvolutionInputGenerator" in bottleneck_name and not is_parallel_window_active) == False:
-                        simd_state[bottleneck_name] = next_simd_to_try
-                        logger.info(f"Ajustando o SIMD de '{bottleneck_name}' para o próximo valor incremental válido: {simd_state[bottleneck_name]}")
+                    if next_simd_to_try > current_simd: simd_state[bottleneck_name] = next_simd_to_try
                     else:
-                        logger.info(f"Otimização para '{bottleneck_name}' já no limite. Não há mais otimizações possíveis.")
-                        break
+                        if not is_parallel_window_active: cycle_formulas[bottleneck_name]["parallel_window"] = 1
+                        else: break
+                else:
+                    next_simd_to_try = analyzer._find_next_valid_parallelism(bottleneck_name, current_simd, op_type, data, "SIMD")
+                    if next_simd_to_try > current_simd: simd_state[bottleneck_name] = next_simd_to_try
+                    else: break
             
-            # Se parallel_window foi ativado, reinicia o loop para recalcular os ciclos
-            if "ConvolutionInputGenerator" in data.get("op_type", "") and 'is_simd_at_max' in locals() and is_simd_at_max and not is_parallel_window_active:
-                iteration += 1
-                continue
+            if "ConvolutionInputGenerator" in data.get("op_type", "") and 'next_simd_to_try' in locals() and next_simd_to_try <= current_simd and not is_parallel_window_active:
+                iteration += 1; continue
 
-            # LINHA ADICIONADA: Calcula e imprime o FPS
-            f_clock = 100e6  # 100 MHz
+            f_clock = 100e6
             bottleneck_fps = f_clock / bottleneck_cycles
             logger.info(f"FPS do gargalo: {bottleneck_fps:.2f} FPS.")
-
             iteration += 1
             
-        # 5. Gera o gráfico com os dados coletados
         bottleneck_data_iterations.pop()
         bottleneck_data_cycles.pop()
         bottleneck_data_names.pop()
         analyzer.plot_bottleneck_evolution(bottleneck_data_iterations, bottleneck_data_cycles, bottleneck_data_names, cycle_formulas)
 
-    except FileNotFoundError:
-        logger.error(f"ERRO: Arquivo de modelo não encontrado em '{ONNX_MODEL_PATH}'.")
     except Exception:
         logger.critical("Ocorreu um erro inesperado:", exc_info=True)
 
 
+def _evaluate_bottleneck_fps(folding_config, analyzer, cycle_formulas):
+    max_cycles = 1
+    for layer_name, data in cycle_formulas.items():
+        formula = data['formula']
+        cfg = folding_config.get(layer_name, {})
+        current_params = {"PE": cfg.get("PE", 1), "SIMD": cfg.get("SIMD", 1)}
+        
+        if "ConvolutionInputGenerator" in data.get("op_type", "") and cfg.get("parallel_window", 0) == 1:
+            cycles = 2
+        else:
+            cycles = analyzer._eval_formula(formula, current_params)
+            
+        if cycles > max_cycles:
+            max_cycles = cycles
+            
+    f_clock = 100e6
+    return f_clock / max_cycles if max_cycles > 0 else 0
+
+
+def generate_foldings(onnx_model_path, auto_folding_path, output_dir, debug_mode):
+    """Executa a lógica de exportação estruturada de .json por step do modelo analítico."""
+    import json, os, csv
+    
+    analyzer = FinnCycleEstimator(onnx_model_path, debug=debug_mode)
+    cycle_formulas = analyzer.get_cycle_formulas()
+
+    if not cycle_formulas:
+        logger.error("[✗] Nenhuma fórmula de Hardware pôde ser extraída do ONNX.")
+        return
+
+    logger.info("Gerando folding base inicial a partir do template do FINN...")
+    
+    if auto_folding_path and os.path.exists(auto_folding_path):
+        with open(auto_folding_path, "r") as f:
+            current_folding = json.load(f)
+    else:
+        from utils.hw_utils import utils
+        current_folding = utils.reset_folding({}, onnx_model_path)
+    
+    foldings_dir = os.path.join(output_dir, "foldings")
+    os.makedirs(foldings_dir, exist_ok=True)
+    
+    csv_rows = [["Step", "FPS", "Configuration_File"]]
+    
+    step = 1
+    fps = _evaluate_bottleneck_fps(current_folding, analyzer, cycle_formulas)
+    filename = f"folding_step_{step:03d}.json"
+    csv_rows.append([step, f"{fps:.2f}", filename])
+    
+    out_path = os.path.join(foldings_dir, filename)
+    with open(out_path, "w") as f:
+        json.dump(current_folding, f, indent=2)
+    logger.info(f"[✓] Step {step}: {out_path} salvo com {fps:.2f} FPS.")
+
+    while True:
+        step += 1
+        new_folding = modify_folding_analytical(current_folding, analyzer, cycle_formulas)
+        
+        if new_folding == current_folding:
+            logger.info(f"\n[✓] Otimização analítica chegou ao limite de paralelismo.")
+            logger.info(f"Total de {step-1} configurations geradas na pasta {foldings_dir}")
+            break
+            
+        current_folding = new_folding
+        fps = _evaluate_bottleneck_fps(current_folding, analyzer, cycle_formulas)
+        filename = f"folding_step_{step:03d}.json"
+        csv_rows.append([step, f"{fps:.2f}", filename])
+        
+        out_path = os.path.join(foldings_dir, filename)
+        with open(out_path, "w") as f:
+            json.dump(current_folding, f, indent=2)
+        logger.debug(f"[✓] Step {step}: {out_path} salvo com {fps:.2f} FPS.")
+
+    csv_path = os.path.join(output_dir, "analytical_fps_map.csv")
+    with open(csv_path, "w", newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(csv_rows)
+    logger.info(f"[✓] Mapa CSV de FPS (analytical_fps_map.csv) exportado em {output_dir}")
+
+
 if __name__ == '__main__':
-    main()
+    import argparse
+    import os
+    parser = argparse.ArgumentParser(description="Utilitário Analítico de Estimação de Ciclos FINN-HARA.")
+    parser.add_argument('--onnx', type=str, help="Caminho para o ONNX do modelo (opcional se --request for usado).")
+    parser.add_argument('--request', type=str, help="Caminho do request.json (gera o ONNX automaticamente subindo um build0).")
+    parser.add_argument('--debug', action='store_true', help="Ativa logs iterativos detalhados de extração e cálculos.")
+    parser.add_argument('--generate-folding-files', action='store_true', help="Se ativado, irá exportar arquivos .json de configuração ao invés de apenas plotar.")
+    parser.add_argument('--output-dir', type=str, default="analytical_foldings_output", help="Pasta para salvar os .json gerados (apenas com generate flags).")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO if not args.debug else logging.DEBUG, format='[%(levelname)s] %(message)s')
+    
+    onnx_path = args.onnx
+    auto_folding_path = None
+    
+    if args.request:
+        if not os.path.exists(args.request):
+            logger.error(f"Arquivo de request ausente: {args.request}")
+            exit(1)
+        out_b = args.output_dir if args.generate_folding_files else "tmp_analy_build"
+        os.makedirs(out_b, exist_ok=True)
+        onnx_path, auto_folding_path = _get_base_onnx(args.request, out_b)
+        if not onnx_path or not os.path.exists(onnx_path):
+            logger.error(f"Falha gravíssima ao obter onnx base a partir do FINN (run0).")
+            exit(1)
+            
+    if not onnx_path:
+        logger.error("Você deve especificar --onnx ou --request para fornecer o modelo Base.")
+        exit(1)
+
+    if args.generate_folding_files:
+        generate_foldings(onnx_path, auto_folding_path, args.output_dir, args.debug)
+    else:
+        analyze_and_plot(onnx_path, args.debug)

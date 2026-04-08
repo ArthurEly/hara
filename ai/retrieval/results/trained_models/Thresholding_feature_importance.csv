@@ -1,0 +1,6 @@
+feature,BRAM (36k eq.),DSP Blocks,Total FFs,Total LUT
+ActVal,0.0,0.0,0.65570426,0.63878417
+PE,0.0,0.0,0.34429574,0.36121583
+depth,0.0,0.0,0.0,0.0
+inWidth,0.0,0.0,0.0,0.0
+numSteps,0.0,0.0,0.0,0.0

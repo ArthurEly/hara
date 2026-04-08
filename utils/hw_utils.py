@@ -797,10 +797,12 @@ class utils():
     @staticmethod
     def reset_folding(folding, onnx_path, fixed_resources=None):
         def _get_hw_layer_features(path):
+            import onnx
+            from onnx import helper
             model = onnx.load(path)
             feats = {}
             for node in model.graph.node:
-                if node.op_type.startswith("MVAU"):
+                if node.op_type.startswith("MatrixVectorActivation") or node.op_type.startswith("VectorVectorActivation") or node.op_type.startswith("MVAU"):
                     attr = {a.name: helper.get_attribute_value(a) for a in node.attribute}
                     mw = int(attr.get("MW", 0))
                     mh = int(attr.get("MH", 0))
@@ -1275,6 +1277,94 @@ def _transform_pipeline_cifar10(model, build_dir, topology_id, quant_str):
     model.save(final_model_path)
 
     return final_model_path
+
+def _transform_pipeline_mobilenet(model, build_dir, topology_id, quant_str):
+    """
+    Pipeline de transformação FINN para modelos MobileNet quantizados (Brevitas).
+
+    MobileNet usa convoluções depthwise separáveis (VVAU no FINN) e
+    global average pooling — requer InferVectorVectorActivation além do
+    pipeline CNV padrão. Não usa conversão bipolar (pesos inteiros, não binários).
+
+    Input esperado: (1, 3, 64, 64) — imagens RGB 64x64 (SAT6/agrícolas).
+    Ajuste `input_shape` no registry_models.yaml se o modelo usar outra resolução.
+    """
+    print(f"-> Aplicando pipeline de transformação para MobileNet (ID: {topology_id})...")
+
+    model_build_dir = os.path.join(build_dir, f"{topology_id}_{quant_str}_model_files")
+    os.makedirs(model_build_dir, exist_ok=True)
+
+    base_filename = f"{topology_id}_{quant_str}"
+    initial_model_path = os.path.join(model_build_dir, f"{base_filename}_initial.onnx")
+    final_model_path   = os.path.join(model_build_dir, f"{base_filename}_finn_ready.onnx")
+
+    # Exporta com input shape 64x64 (padrão MobileNet no HARA)
+    export_qonnx(model, torch.randn(1, 3, 64, 64), initial_model_path)
+    qonnx_cleanup(initial_model_path, out_file=initial_model_path)
+    model = ModelWrapper(initial_model_path)
+
+    # --- Canonicalização inicial ---
+    model = model.transform(ConvertQONNXtoFINN())
+    model = model.transform(InferShapes())
+    model = model.transform(FoldConstants())
+    model = model.transform(GiveUniqueNodeNames())
+    model = model.transform(GiveReadableTensorNames())
+    model = model.transform(InferDataTypes())
+    model = model.transform(RemoveStaticGraphInputs())
+
+    # --- Pré-processamento (ToTensor) ---
+    global_inp_name = model.graph.input[0].name
+    ishape = model.get_tensor_shape(global_inp_name)
+
+    totensor_pyt = ToTensor()
+    chkpt_preproc_name = os.path.join(model_build_dir, "preproc.onnx")
+    export_qonnx(totensor_pyt, torch.randn(ishape), chkpt_preproc_name)
+    qonnx_cleanup(chkpt_preproc_name, out_file=chkpt_preproc_name)
+
+    pre_model = ModelWrapper(chkpt_preproc_name)
+    pre_model = pre_model.transform(ConvertQONNXtoFINN())
+    model = model.transform(MergeONNXModels(pre_model))
+
+    global_inp_name = model.graph.input[0].name
+    model.set_tensor_datatype(global_inp_name, DataType["UINT8"])
+    model = model.transform(InsertTopK(k=1))
+
+    # --- Streamlining ---
+    model = model.transform(InferShapes())
+    model = model.transform(FoldConstants())
+    model = model.transform(GiveUniqueNodeNames())
+    model = model.transform(GiveReadableTensorNames())
+    model = model.transform(InferDataTypes())
+    model = model.transform(RemoveStaticGraphInputs())
+
+    model = model.transform(MoveScalarLinearPastInvariants())
+    model = model.transform(Streamline())
+    # MobileNet usa pesos inteiros — sem conversão bipolar/xnor
+    model = model.transform(absorb.AbsorbAddIntoMultiThreshold())
+    model = model.transform(absorb.AbsorbMulIntoMultiThreshold())
+    model = model.transform(absorb.AbsorbScalarMulAddIntoTopK())
+    model = model.transform(RoundAndClipThresholds())
+    model = model.transform(InferDataLayouts())
+    model = model.transform(RemoveUnusedTensors())
+
+    # --- Mapeamento para camadas de HW ---
+    # InferVectorVectorActivation: cobre convoluções depthwise (VVAU)
+    model = model.transform(to_hw.InferVectorVectorActivation())
+    model = model.transform(to_hw.InferQuantizedMatrixVectorActivation())
+    model = model.transform(to_hw.InferLabelSelectLayer())
+    model = model.transform(Streamline())
+    model = model.transform(to_hw.InferThresholdingLayer())
+
+    parent_model = model.transform(CreateDataflowPartition())
+    sdp_node = getCustomOp(
+        parent_model.get_nodes_by_op_type("StreamingDataflowPartition")[0]
+    )
+    dataflow_model_path = sdp_node.get_nodeattr("model")
+
+    shutil.copy(dataflow_model_path, final_model_path)
+    print(f"-> MobileNet FINN-ready salvo em: {final_model_path}")
+    return final_model_path
+
 
 def get_finn_ready_model(model_info, build_dir):
     topology_id = model_info["topology_id"]

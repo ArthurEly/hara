@@ -1,0 +1,4 @@
+feature,BRAM (36k eq.),DSP Blocks,Total FFs,Total LUT
+depth,0.0,0.0,0.08731748,0.68090653
+inWidth,0.0,0.0,0.15840581,0.29062802
+isImpl_styleRtl,0.0,0.0,0.7542767,0.028465513
