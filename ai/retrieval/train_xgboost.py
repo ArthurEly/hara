@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import KFold, train_test_split
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from xgboost import XGBRegressor
 
@@ -54,33 +55,52 @@ N_SPLITS = 10
 
 MODULE_CONFIGS = {
 
-    "MVAU": {
+# --- ESPECIALISTAS MVAU POR TOPOLOGIA ---
+    
+    "MVAU_MNIST_1W1A": {
         "raw_filename": "exhaustive_MVAU_area_attrs.csv",
-        "ohe_cols": ["ram_style", "resType", "op_type", "mem_mode", "binaryXnorMode"],
-        "extra_drops": [
-            "cycles_estimate", "estimated_cycles",
-            "depth_trigger_bram", "depth_trigger_uram",
-            "depthwise", "is1D", "parallel_window",
-            "runtime_writeable_weights",
-            "ConvKernelDim", "Dilation", "IFMChannels", "IFMDim",
-            "ImgDim", "OFMDim", "Stride", "Padding",
-            "backend",
-        ],
-        "bitwidth_cols": ["accDataType", "inputDataType", "outputDataType", "weightDataType"],
-        "corr_threshold": 0.98,
-        "xgb_params": dict(
-            n_estimators=600,
-            max_depth=6,
-            learning_rate=0.04,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_alpha=0.1,
-            reg_lambda=1.0,
-            random_state=42,
-            n_jobs=-1,
-        ),
+        "ohe_cols": ["ram_style", "resType"],
+        "extra_drops": ["cycles_estimate", "estimated_cycles", "op_type", "runtime_writeable_weights", "mem_mode"],
+        "bitwidth_cols": ["inputDataType", "weightDataType", "outputDataType"],
+        "corr_threshold": None,
+        "xgb_params": dict(n_estimators=300, max_depth=6, learning_rate=0.05, random_state=42, n_jobs=-1),
+    },
+    
+    "MVAU_MNIST_2W2A": {
+        "raw_filename": "exhaustive_MVAU_area_attrs.csv",
+        "ohe_cols": ["ram_style", "resType"],
+        "extra_drops": ["cycles_estimate", "estimated_cycles", "op_type", "runtime_writeable_weights", "mem_mode"],
+        "bitwidth_cols": ["inputDataType", "weightDataType", "outputDataType"],
+        "corr_threshold": None,
+        "xgb_params": dict(n_estimators=350, max_depth=7, learning_rate=0.05, random_state=42, n_jobs=-1),
     },
 
+    "MVAU_SAT6_T2W2": {
+        "raw_filename": "exhaustive_MVAU_area_attrs.csv",
+        "ohe_cols": ["ram_style", "resType"],
+        "extra_drops": ["cycles_estimate", "estimated_cycles", "op_type", "runtime_writeable_weights", "mem_mode"],
+        "bitwidth_cols": ["inputDataType", "weightDataType", "outputDataType"],
+        "corr_threshold": None,
+        "xgb_params": dict(n_estimators=350, max_depth=7, learning_rate=0.05, random_state=42, n_jobs=-1),
+    },
+
+    "MVAU_SAT6_T2W4": {
+        "raw_filename": "exhaustive_MVAU_area_attrs.csv",
+        "ohe_cols": ["ram_style", "resType"],
+        "extra_drops": ["cycles_estimate", "estimated_cycles", "op_type", "runtime_writeable_weights", "mem_mode"],
+        "bitwidth_cols": ["inputDataType", "weightDataType", "outputDataType"],
+        "corr_threshold": None,
+        "xgb_params": dict(n_estimators=400, max_depth=8, learning_rate=0.05, random_state=42, n_jobs=-1),
+    },
+
+    "MVAU_SAT6_T2W8": {
+        "raw_filename": "exhaustive_MVAU_area_attrs.csv",
+        "ohe_cols": ["ram_style", "resType"],
+        "extra_drops": ["cycles_estimate", "estimated_cycles", "op_type", "runtime_writeable_weights", "mem_mode"],
+        "bitwidth_cols": ["inputDataType", "weightDataType", "outputDataType"],
+        "corr_threshold": None,
+        "xgb_params": dict(n_estimators=500, max_depth=10, learning_rate=0.05, random_state=42, n_jobs=-1),
+    },
     "ConvolutionInputGenerator": {
         "raw_filename": "exhaustive_ConvolutionInputGenerator_area_attrs.csv",
         "ohe_cols": ["ram_style"],
@@ -275,6 +295,21 @@ def prepare_module_df(df: pd.DataFrame, cfg: dict, module_name: str) -> pd.DataF
         # Treina apenas com FIFOs que USARAM BRAM
         df = df[df["BRAM (36k eq.)"] > 0]
 
+    # --- SUPER-ESPECIALIZAÇÃO POR TOPOLOGIA (Filtro Direto) ---
+    if "MVAU_" in module_name:
+        # Extrai a topologia do nome do módulo (ex: MVAU_MNIST_1W1A -> MNIST_1W1A)
+        target_topo = module_name.replace("MVAU_", "")
+        
+        initial_count = len(df)
+        # Filtra o dataset para conter apenas a topologia solicitada
+        df = df[df["model_id"] == target_topo]
+        
+        print(f"  [Filtro] {module_name}: {len(df)} amostras de {initial_count} retidas (Model: {target_topo}).")
+        
+        if len(df) == 0:
+            print(f"  [!] AVISO: Nenhuma amostra encontrada para {target_topo}!")
+            return df
+
     # --- INSERIR DEPTHS REAIS NAS FIFOS ---
     if module_name == "StreamingFIFO":
         fifo_depth_csv = os.path.join(
@@ -340,12 +375,21 @@ def prepare_module_df(df: pd.DataFrame, cfg: dict, module_name: str) -> pd.DataF
         df["depth"]        = np.log1p(df["depth"])
         df["bit_capacity"] = np.log1p(df["bit_capacity"])
 
+    # FEATURE ENGINEERING: Complexidade Multiplicativa para MVAU
+    if "MVAU" in module_name:
+        in_bits = pd.to_numeric(df.get("inputDataType (bits)", 1), errors='coerce').fillna(1)
+        w_bits = pd.to_numeric(df.get("weightDataType (bits)", 1), errors='coerce').fillna(1)
+        pe = pd.to_numeric(df.get("PE", 1), errors='coerce').fillna(1)
+        simd = pd.to_numeric(df.get("SIMD", 1), errors='coerce').fillna(1)
+        
+        df["mac_complexity"] = in_bits * w_bits * pe * simd
+    
     # ── 6. TARGET LOG TRANSFORMATION ──────────────────────────────────────
     # Treinar no espaço logarítmico impede que o erro de uma FIFO gigante 
     # destrua a precisão das FIFOs pequenas.
-    #for target in TARGET_COLS:
-    #    if target in df.columns:
-    #        df[target] = np.log1p(df[target])
+    for target in TARGET_COLS:
+        if target in df.columns:
+            df[target] = np.log1p(df[target])
 
     # ── 7. Limpezas finais (Remover colunas extras e Converter para numérico) ──
     if not SKIP_EXTRA_DROPS:
@@ -366,7 +410,16 @@ def prepare_module_df(df: pd.DataFrame, cfg: dict, module_name: str) -> pd.DataF
     
     df.drop(columns=low_var, inplace=True, errors='ignore')
 
-    # ── 8. Remover altamente correlacionadas (Protegendo bit_capacity) ──────
+    # ── 8. Remover altamente correlacionadas e baixa variância ──────────────
+    nunique = df.nunique()
+    low_var = [c for c in nunique[nunique <= 1].index if c not in TARGET_COLS]
+    
+    # PROTEÇÃO: Estas colunas NUNCA podem ser dropadas pelo algoritmo de limpeza!
+    protected_features = ["inWidth", "depth", "bit_capacity", "mac_complexity", "weightDataType (bits)", "inputDataType (bits)"]
+    low_var = [c for c in low_var if c not in protected_features]
+    
+    df.drop(columns=low_var, inplace=True, errors='ignore')
+
     threshold = cfg.get("corr_threshold")
     if threshold is not None:
         numeric_df = df.select_dtypes(include=np.number)
@@ -374,9 +427,12 @@ def prepare_module_df(df: pd.DataFrame, cfg: dict, module_name: str) -> pd.DataF
         if numeric_df_no_target.shape[1] > 1:
             corr = numeric_df_no_target.corr().abs()
             upper = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool))
-            high_corr = [col for col in upper.columns
-                         if any(upper[col] > threshold) and col not in TARGET_COLS]
-            high_corr = [c for c in high_corr if c != "bit_capacity"]
+            high_corr = [col for col in upper.columns if any(upper[col] > threshold) and col not in TARGET_COLS]
+            
+            # PROTEGE CONTRA CORRELAÇÃO (Garante que mac_complexity sobreviva)
+            high_corr = [c for c in high_corr if c not in protected_features]
+            if high_corr:
+                print(f"  Removendo correlacionadas: {high_corr}")
             df.drop(columns=high_corr, inplace=True, errors='ignore')
 
     return df
@@ -392,15 +448,64 @@ def prepare_xy(df: pd.DataFrame):
     return X, y, list(feature_df.columns)
 
 
+def train_fifo_classifier(df_raw):
+    """
+    Treina uma Decision Tree (como sugerido na literatura) 
+    para prever a escolha do Vivado entre BRAM e LUTRAM.
+    """
+    print(f"\n{'='*65}")
+    print("Treinando Decision Tree Classifier para StreamingFIFO (BRAM vs LUT)...")
+    df = df_raw.copy()
+    
+    # Garante que as colunas base existam e sejam numéricas
+    df["inWidth"] = pd.to_numeric(df["inWidth"], errors='coerce').fillna(8)
+    df["depth"] = pd.to_numeric(df["depth"], errors='coerce').fillna(2)
+    
+    # Puxa o depth real do CSV de profundidades (igual fazemos no prepare_module_df)
+    fifo_depth_csv = os.path.join(OUTPUT_DIR.replace("trained_models", "fifo_depth"), "exhaustive_fifo_depths.csv")
+    if os.path.exists(fifo_depth_csv):
+        df_depths = pd.read_csv(fifo_depth_csv)
+        keys = ["model_id", "session", "run_name"]
+        df_depths = df_depths[keys + ["fifo_name", "depth"]]
+        if "depth" in df.columns:
+            df = df.drop(columns=["depth"])
+        df = df.merge(df_depths, how="left", left_on=keys + ["Submodule Instance"], right_on=keys + ["fifo_name"])
+        df["depth"] = df["depth"].fillna(2)
+
+    # Features: O artigo usa Width e Height (Depth)
+    X = df[["inWidth", "depth"]].copy()
+    
+    # Target: 1 se usou BRAM (BRAM > 0), 0 se usou LUT
+    y = (df["BRAM (36k eq.)"] > 0).astype(int) 
+    
+    # Treina a árvore de decisão (max_depth=5 para evitar overfitting e capturar a heurística)
+    clf = DecisionTreeClassifier(max_depth=5, random_state=42)
+    clf.fit(X, y)
+    
+    acc = clf.score(X, y)
+    print(f"  [✓] Classificador treinado! Acurácia na base de dados: {acc*100:.2f}%")
+    
+    # Salva o modelo
+    model_path = os.path.join(OUTPUT_DIR, "StreamingFIFO_Classifier.pkl")
+    with open(model_path, "wb") as f:
+        pickle.dump(clf, f)
+    print(f"  [✓] Modelo salvo em: {model_path}")
+
 def train_and_evaluate(X_train, y_train, X_test, y_test, feature_names, module_name, xgb_params):
-    # --- SAMPLE WEIGHTING: Compensação de Desbalanceamento ---
-    # Dá peso 10x para as amostras que usam BRAM (coluna index 2: BRAM 36k eq.)
-    # Como y_train está em log, verificamos se log(1+BRAM) > 0
-    weights = np.where(y_train[:, 2] > 0, 10.0, 1.0)
+    # --- SAMPLE WEIGHTING: Tratamento de Choque para Desbalanceamento ---
+    weights = np.ones(len(y_train))
+    
+    if "StreamingFIFO" in module_name:
+        # Peso 15x para forçar aprendizado das raras ocorrências de BRAM
+        weights = np.where(y_train[:, 2] > 0, 15.0, 1.0)
+    elif "MVAU" in module_name:
+        # Peso agressivo (15x) para MVAUs que custam mais de 5000 LUTs (redes de 8-bits)
+        # Isso impede que o XGBoost sacrifique o W8 para manter a média do W1/W2 baixa
+        weights = np.where(y_train[:, 0] > 5000, 15.0, 1.0)
 
     kf = KFold(n_splits=N_SPLITS, shuffle=True, random_state=42)
     fold_records = []
-    print(f"  K-Fold CV ({N_SPLITS} folds) com Pesos e Log-Reversal…")
+    print(f"  K-Fold CV ({N_SPLITS} folds) com Pesos Dinâmicos...")
     
     for fold_idx, (tr_idx, val_idx) in enumerate(kf.split(X_train)):
         X_tr, X_val = X_train[tr_idx], X_train[val_idx]
@@ -410,10 +515,9 @@ def train_and_evaluate(X_train, y_train, X_test, y_test, feature_names, module_n
         model = MultiOutputRegressor(XGBRegressor(**xgb_params))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            # Treina usando os pesos de importância
+            # Treina usando os pesos de importância específicos deste fold
             model.fit(X_tr, y_tr, sample_weight=w_tr)
         
-        # Inverte o Log para calcular métricas na escala real do Hardware
         y_pred_real = model.predict(X_val)
         y_val_real = y_val
         
@@ -424,7 +528,7 @@ def train_and_evaluate(X_train, y_train, X_test, y_test, feature_names, module_n
             row[f"RMSE_{safe}"] = float(np.sqrt(mean_squared_error(y_val_real[:, i], y_pred_real[:, i])))
         fold_records.append(row)
 
-    # Treino final no set completo
+    # Treino final no dataset completo
     final_model = MultiOutputRegressor(XGBRegressor(**xgb_params))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -461,6 +565,11 @@ def main():
         if not os.path.isfile(raw_path): continue
         print(f"\n{'='*65}\nMódulo: {module_name}")
         df_raw = pd.read_csv(raw_path)
+        
+        # NOVO: Se estivermos passando pela base de dados da FIFO, treine o classificador!
+        if module_name == "StreamingFIFO_LUT": # Usa a base raw para treinar
+            train_fifo_classifier(df_raw)
+        
         try:
             df_clean = prepare_module_df(df_raw, cfg, module_name)
         except Exception as e:

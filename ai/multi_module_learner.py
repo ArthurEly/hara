@@ -37,8 +37,7 @@ except ImportError:
 # =============================================================================
 
 MODULE_MODEL_MAP = {
-    "MVAU": "MVAU",
-    "MatrixVectorActivation": "MVAU",
+    "MVAU": "MVAU",  # Chave base
     "ConvolutionInputGenerator": "ConvolutionInputGenerator",
     "FMPadding": "FMPadding",
     "LabelSelect": "LabelSelect",
@@ -48,7 +47,13 @@ MODULE_MODEL_MAP = {
 }
 
 TARGET_COLS = ["Total LUT", "Total FFs", "BRAM (36k eq.)", "DSP Blocks"]
-
+SUPPORTED_TOPOLOGIES = [
+    "MNIST_1W1A", 
+    "MNIST_2W2A", 
+    "SAT6_T2W2", 
+    "SAT6_T2W4", 
+    "SAT6_T2W8"
+]
 # =============================================================================
 # MODELO ESPECIALISTA (Wrapper XGBoost)
 # =============================================================================
@@ -60,6 +65,7 @@ class _PerModuleModel:
         self.model = obj["model"]
         self.feature_names = obj.get("feature_names", [])
         self.target_cols = obj.get("target_cols", TARGET_COLS)
+        
 
     def predict(self, X: np.ndarray) -> dict[str, float]:
         with warnings.catch_warnings():
@@ -78,6 +84,13 @@ class MultiModuleLearner:
         self._onnx_cache: dict[str, list] = {}
         self.current_wrapper = None # Mantém o grafo expandido para consulta de tensores
         self._load_all_models()
+        self.fifo_classifier = None
+        # Altere o nome do arquivo aqui também:
+        clf_path = os.path.join(models_dir, "StreamingFIFO_Classifier.pkl")
+        if os.path.exists(clf_path):
+            with open(clf_path, "rb") as f:
+                self.fifo_classifier = pickle.load(f)
+            print("[MultiModuleLearner] ✓ Decision Tree Classifier de BRAM/LUT carregado.")
 
     def _extract_bitwidth(self, x_str):
         """Traduz tipos FINN para inteiros de bitwidth."""
@@ -146,46 +159,46 @@ class MultiModuleLearner:
 
     # Adicionar como método da classe MultiModuleLearner
     def _classify_fifo_memory(self, node_attrs: dict, folding_cfg: dict, depth: int) -> str:
-        """
-        Determina deterministicamente se a FIFO usará BRAM ou LUT/SRL.
-        Deve ser chamado ANTES do modelo XGBoost para injetar 'is_bram' como feature.
-        """
-        layer_name = node_attrs.get("name", "")
-        impl_style  = str(node_attrs.get("impl_style", "rtl")).lower()
-        ram_style   = str(folding_cfg.get(layer_name, {}).get("ram_style",
-                        node_attrs.get("ram_style", "auto"))).lower()
-
-        # Calcula largura real (antes do log-scaling)
+        # Extrair a largura real (in_width)
         input_tensor = node_attrs.get("_in_tensor")
-        bits = 0
+        bits = 8
         if input_tensor and self.current_wrapper:
             dtype = self.current_wrapper.get_tensor_datatype(input_tensor)
             bits = self._extract_bitwidth(str(dtype))
-        if bits == 0:
-            bits = 8
-        inst_folding = folding_cfg.get(layer_name, {})
-        parallel  = inst_folding.get("PE", inst_folding.get("SIMD", 1))
-        in_width  = bits * parallel
-        bit_cap   = in_width * depth
-
-        BRAM_THRESHOLD = 512  # bits — empírico para RAMB18E1
-
-        # FIFOs Xilinx XPM (impl_style="vivado"): Vivado decide via MEMORY_PRIMITIVE=0
-        if impl_style == "vivado":
-            return "BRAM" if bit_cap > BRAM_THRESHOLD else "LUT"
-
-        # FIFOs FINN RTL (impl_style="rtl"): controlado pelo ram_style do nó
-        if ram_style == "block":
-            return "BRAM"
-        if ram_style == "distributed":
-            return "LUT"
-        # ram_style="auto": FINN aplica o mesmo threshold
-        return "BRAM" if bit_cap > BRAM_THRESHOLD else "LUT"
+        
+        layer_name = node_attrs.get("name", "")
+        parallel = folding_cfg.get(layer_name, {}).get("PE", folding_cfg.get(layer_name, {}).get("SIMD", 1))
+        in_width = bits * parallel
+        
+        # Usa a Árvore de Decisão se ela existir
+        if self.fifo_classifier is not None:
+            # O modelo espera um array 2D com [inWidth, depth] (valores reais, sem log!)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                pred = self.fifo_classifier.predict([[in_width, depth]])[0]
+            return "BRAM" if pred == 1 else "LUT"
+        else:
+            # Fallback para a regra de segurança se o modelo sumir
+            return "BRAM" if (in_width * depth) >= 2048 else "LUT"
 
     def _predict_layer(self, module_key: str, node_attrs: dict, 
                        folding_cfg: dict, depth: int) -> dict | None:
         layer_name = node_attrs.get("name", "")
         op_type = node_attrs.get("op_type", "").lower()
+        raw_data = dict(node_attrs)
+        inst_folding = folding_cfg.get(layer_name, {})
+        raw_data.update(inst_folding)
+        
+        # --- ROTEADOR MVAU (1-Bit vs Multi-Bit) ---
+        if "MVAU" in module_key:            
+            print(f"\n--- [DEBUG MVAU INPUT: {layer_name}] ---")
+            print(f"  Especialista Alvo: {module_key}")
+            print(f"  weightDataType: {raw_data.get('weightDataType')}")
+            print(f"  weightDataType (bits): {raw_data.get('weightDataType (bits)')}")
+            print(f"  mac_complexity: {raw_data.get('mac_complexity')}")
+            print(f"  PE: {raw_data.get('PE')} | SIMD: {raw_data.get('SIMD')}")
+            print("------------------------------------------\n")
+        
         
         # --- O ROTEADOR DE ESPECIALISTAS (Mixture of Experts) ---
         if "StreamingFIFO" in module_key:
@@ -198,9 +211,6 @@ class MultiModuleLearner:
         model_obj = self._models.get(module_key)
         if not model_obj: return None
 
-        raw_data = dict(node_attrs)
-        inst_folding = folding_cfg.get(layer_name, {})
-        raw_data.update(inst_folding)
         
         raw_data["depth"] = depth
         raw_data["isRTL"] = 1 if "rtl" in layer_name.lower() else 0
@@ -240,58 +250,146 @@ class MultiModuleLearner:
                 clean = ''.join(e for e in val if e.isalnum()).capitalize()
                 raw_data[f"is{cat[0].upper() + cat[1:]}{clean}"] = 1
 
+        # NOVO: Trava para DataWidthConverter
+        if "StreamingDataWidthConverter" in module_key:
+            return {
+                "Total LUT": 20.0,
+                "Total FFs": 40.0,
+                "BRAM (36k eq.)": 0.0,
+                "DSP Blocks": 0.0
+            }
+
+        # TENSOR INTELLIGENCE: Complexidade Multiplicativa
+        if "MVAU" in module_key:
+            in_bits = float(raw_data.get("inputDataType (bits)", 1))
+            w_bits = float(raw_data.get("weightDataType (bits)", 1))
+            pe = float(raw_data.get("PE", 1))
+            simd = float(raw_data.get("SIMD", 1))
+            
+            raw_data["mac_complexity"] = in_bits * w_bits * pe * simd
+
         # Alinhamento e Predição
         X_input = [float(raw_data.get(f, 0.0)) for f in model_obj.feature_names]
         X_arr = np.array(X_input, dtype=np.float32).reshape(1, -1)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            # A predição bruta está na escala Logarítmica
-            real_pred = model_obj.model.predict(X_arr)[0]
+            # A predição bruta agora está na escala LOG
+            log_pred = model_obj.model.predict(X_arr)[0]
 
-        # --- REVERSÃO DO LOG (Scale Back to Hardware) ---
-        # np.expm1(x) calcula e^x - 1, revertendo o log(1+x) do treino
-        #real_pred = np.expm1(log_pred)
-
+        # REVERSÃO DO LOG: np.expm1 reverte o log1p do treino
+        real_pred = np.expm1(log_pred)
         return {col: max(0.0, float(v)) for col, v in zip(model_obj.target_cols, real_pred)}
 
-    # ------------------------------------------------------------------
-    # PIPELINE DE PREDIÇÃO END-TO-END
-    # ------------------------------------------------------------------
+    def _extract_bits(self, dtype_str):
+        """Extrai numericamente o bitwidth de strings complexas do FINN."""
+        if not dtype_str: 
+            return 8 # Fallback seguro
+        
+        s = str(dtype_str).upper()
+        
+        # 1. Checagem de tipos binarizados (Prioridade Máxima)
+        if any(x in s for x in ["BINARY", "BIPOLAR", "INT1", "UINT1"]): 
+            return 1
+            
+        # 2. Busca por números na string (ex: INT17 -> 17, UINT2 -> 2)
+        nums = re.findall(r'\d+', s)
+        if nums:
+            return int(nums[0])
+            
+        # 3. Fallback: Se não houver número mas for um tipo conhecido, assume-se 8 bits
+        return 8
 
     def predict(self, onnx_path: str, foldings: list[dict]) -> list[dict]:
         if not self.is_loaded(): return [{}] * len(foldings)
         
-        # Expande o grafo (InsertFIFO/DWC)
-        nodes = self._onnx_cache.get(onnx_path) or self._expand_topology(onnx_path)
-        self._onnx_cache[onnx_path] = nodes
+        topology_key = "UNKNOWN"
+        for topo in SUPPORTED_TOPOLOGIES:
+            if topo in onnx_path:
+                topology_key = topo
+                break
+        
+        onnx_model = onnx.load(onnx_path)
+        graph_nodes = {n.name: n for n in onnx_model.graph.node}
+        nodes_to_process = self._onnx_cache.get(onnx_path) or self._expand_topology(onnx_path)
+        self._onnx_cache[onnx_path] = nodes_to_process
         
         results = []
         for folding in foldings:
-            # Predição 2-stage de profundidade
-            raw_depths = predict_fifo_depths(onnx_path, folding) if _FIFO_PREDICTOR_AVAILABLE else {}
-            # Normaliza nomes: StreamingFIFO_rtl_0 -> StreamingFIFO_0
+            raw_depths = {}
+            if _FIFO_PREDICTOR_AVAILABLE:
+                try: raw_depths = predict_fifo_depths(onnx_path, folding)
+                except: pass
+            
             fifo_depths = {k.replace("_rtl", ""): v for k, v in raw_depths.items()}
-
             total = {col: 0.0 for col in TARGET_COLS}
             details = {}
 
-            for node in nodes:
-                op = node.get("op_type", "")
-                name = node.get("name", "")
+            for node_dict in nodes_to_process:
+                op = node_dict.get("op_type", "")
+                name = node_dict.get("name", "")
                 
-                module_key = None
-                for k, mk in MODULE_MODEL_MAP.items():
+                # 1. Identificação do Módulo Base
+                base_key = None
+                for k in ["MVAU", "StreamingFIFO", "ConvolutionInputGenerator", "FMPadding", "Thresholding", "LabelSelect", "StreamingDataWidthConverter"]:
                     if k in op:
-                        module_key = mk
+                        base_key = k
                         break
+                if not base_key: continue
 
-                if not module_key: continue
+                # 2. Extração Dinâmica de Atributos do Grafo
+                w_type = ""
+                in_type = ""
+                if name in graph_nodes:
+                    for attr in graph_nodes[name].attribute:
+                        if attr.name == "weightDataType": w_type = attr.s.decode('utf-8')
+                        if attr.name == "inputDataType": in_type = attr.s.decode('utf-8')
 
-                # Define depth (ML para FIFOs, default 2 para o resto)
-                d = fifo_depths.get(name, 2) if "StreamingFIFO" in op else 2
+                # Fallback para o dicionário se o ONNX falhar
+                w_type = w_type or node_dict.get("weightDataType", "INT8")
+                in_type = in_type or node_dict.get("inputDataType", "INT8")
                 
-                pred = self._predict_layer(module_key, node, folding, d)
+                # Conversão para bits reais
+                w_bits = self._extract_bits(w_type)
+                in_bits = self._extract_bits(in_type)
+                
+                # 3. Engenharia de Recursos (Feature Engineering) Dinâmica
+                # Extrai PE e SIMD do folding config para este nó específico
+                node_folding = folding.get(name, {})
+                pe = float(node_folding.get("PE", 1))
+                simd = float(node_folding.get("SIMD", 1))
+                
+                # Atualiza node_dict com as features que o XGBoost espera
+                node_dict["weightDataType (bits)"] = w_bits
+                node_dict["inputDataType (bits)"] = in_bits
+                node_dict["PE"] = pe
+                node_dict["SIMD"] = simd
+                node_dict["inWidth"] = in_bits * simd
+                node_dict["mac_complexity"] = float(in_bits * w_bits * pe * simd)
+                
+                # 4. Roteamento Inteligente
+                d = fifo_depths.get(name, 2) if "StreamingFIFO" in op else 2
+                module_key = base_key
+                
+                if base_key == "MVAU":
+                    module_key = "MVAU_1Bit" if w_bits == 1 else "MVAU_MultiBit"
+                elif base_key == "StreamingFIFO":
+                    mem_type = self._classify_fifo_memory(node_dict, folding, d)
+                    module_key = f"StreamingFIFO_{mem_type}"
+    
+                if "MVAU" in base_key:
+                    # O module_key agora é mapeado diretamente para o especialista daquela rede
+                    module_key = f"MVAU_{topology_key}"
+                    
+                    # Injeta as features para o XGBoost (bits e complexidade)
+                    node_dict["weightDataType (bits)"] = self._extract_bits(w_type)
+                    node_dict["inputDataType (bits)"] = self._extract_bits(in_type)
+                    pe = float(folding.get(name, {}).get("PE", 1))
+                    simd = float(folding.get(name, {}).get("SIMD", 1))
+                    node_dict["mac_complexity"] = float(node_dict["inputDataType (bits)"] * node_dict["weightDataType (bits)"] * pe * simd)
+                    
+                # 5. Predição
+                pred = self._predict_layer(module_key, node_dict, folding, d)
                 if pred:
                     details[name] = pred
                     for col in TARGET_COLS:
