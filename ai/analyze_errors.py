@@ -1,69 +1,85 @@
-import pandas as pd
+import os
 import re
 
+import pandas as pd
+
+
 def extract_topology(build_name):
-    """
-    Extrai a topologia base do nome do build.
-    Exemplo: 'SAT6_T2W8_2026-04-04_21-27-41/run31_optimized' -> 'SAT6_T2W8'
-    """
     match = re.search(r"^(.*?)_202\d", build_name)
     if match:
         return match.group(1)
-    return build_name.split('/')[0] # Fallback caso não tenha a data no formato esperado
+    return build_name.split("/")[0]
+
 
 def main():
+    csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hara_validation_results.csv")
     try:
-        df = pd.read_csv('hara_validation_results.csv')
+        df = pd.read_csv(csv_path)
     except FileNotFoundError:
-        print("[!] Arquivo hara_validation_results.csv não encontrado.")
+        print(f"[!] Arquivo não encontrado: {csv_path}")
         return
 
-    # Criar uma métrica de erro médio (ignorando DSPs) para ranqueamento
-    df['Erro_Medio'] = df[['Err%_LUTs', 'Err%_FFs', 'Err%_BRAM']].mean(axis=1)
-    
-    # 1. NOVA SEÇÃO: Análise por Topologia
-    df['Topology'] = df['Build Name'].apply(extract_topology)
-    
-    # Agrupar e calcular a média e a contagem
-    grp = df.groupby('Topology')
-    topology_stats = grp[['Err%_LUTs', 'Err%_FFs', 'Err%_BRAM', 'Erro_Medio']].mean().reset_index()
-    topology_stats['Count'] = grp.size().values
-    
-    # Ordenar pelas topologias com o menor erro geral
-    topology_stats = topology_stats.sort_values(by='Erro_Medio')
+    metric_cols = ["Err%_LUTs", "Err%_FFs", "Err%_BRAM"]
+    metric_cols_with_dsp = metric_cols + (["Err%_DSP"] if "Err%_DSP" in df.columns else [])
 
-    print("\n" + "="*80)
-    print("📊 MAPE MÉDIO POR TOPOLOGIA (Desempenho do Modelo)")
-    print("="*80)
+    df["Erro_Medio"] = df[metric_cols].mean(axis=1)
+    df["Erro_Medio_Com_DSP"] = df[metric_cols_with_dsp].mean(axis=1)
+    df["Topology"] = df["Build Name"].apply(extract_topology)
+
+    grp = df.groupby("Topology")
+    agg_cols = metric_cols_with_dsp + ["Erro_Medio", "Erro_Medio_Com_DSP"]
+    topology_stats = grp[agg_cols].mean().reset_index()
+    topology_stats["Count"] = grp.size().values
+    topology_stats = topology_stats.sort_values(by="Erro_Medio")
+
+    print("\n" + "=" * 90)
+    print("📊 MAPE MÉDIO POR TOPOLOGIA")
+    print("=" * 90)
     for _, row in topology_stats.iterrows():
-        print(f"📌 {row['Topology']:<15} | Builds: {int(row['Count']):<3} | Erro Médio Geral: {row['Erro_Medio']:>5.1f}%")
-        print(f"   LUTs: {row['Err%_LUTs']:>5.1f}%  |  FFs: {row['Err%_FFs']:>5.1f}%  |  BRAM: {row['Err%_BRAM']:>5.1f}%")
-        print("-" * 80)
+        line = (
+            f"📌 {row['Topology']:<15} | Builds: {int(row['Count']):<3} "
+            f"| Erro Médio: {row['Erro_Medio']:>6.2f}%"
+        )
+        if "Err%_DSP" in topology_stats.columns:
+            line += f" | Erro Médio c/ DSP: {row['Erro_Medio_Com_DSP']:>6.2f}%"
+        print(line)
 
-    # 2. SEÇÃO ORIGINAL: Top 5 e Piores 5
-    df_sorted = df.sort_values(by='Erro_Medio')
+        detail = (
+            f"   LUTs: {row['Err%_LUTs']:>6.2f}%"
+            f" | FFs: {row['Err%_FFs']:>6.2f}%"
+            f" | BRAM: {row['Err%_BRAM']:>6.2f}%"
+        )
+        if "Err%_DSP" in topology_stats.columns:
+            detail += f" | DSP: {row['Err%_DSP']:>6.2f}%"
+        print(detail)
+        print("-" * 90)
 
-    print("\n" + "="*80)
-    print("🏆 TOP 5 MELHORES PREDIÇÕES (Mais próximas da realidade)")
-    print("="*80)
-    best = df_sorted.head(5)
-    for _, row in best.iterrows():
+    df_sorted = df.sort_values(by="Erro_Medio")
+
+    print("\n" + "=" * 90)
+    print("🏆 TOP 5 MELHORES PREDIÇÕES")
+    print("=" * 90)
+    for _, row in df_sorted.head(5).iterrows():
         print(f"🔹 {row['Build Name']}")
-        print(f"   LUTs: Real {row['Real_LUTs']:>6.0f} | Pred {row['Pred_LUTs']:>6.0f}  (Erro: {row['Err%_LUTs']:>6.2f}%)")
-        print(f"   FFs : Real {row['Real_FFs']:>6.0f} | Pred {row['Pred_FFs']:>6.0f}  (Erro: {row['Err%_FFs']:>6.2f}%)")
-        print(f"   BRAM: Real {row['Real_BRAM']:>6.1f} | Pred {row['Pred_BRAM']:>6.1f}  (Erro: {row['Err%_BRAM']:>6.2f}%)")
-        print("-" * 50)
+        print(f"   LUTs: Real {row['Real_LUTs']:>8.0f} | Pred {row['Pred_LUTs']:>8.0f} (Erro: {row['Err%_LUTs']:>6.2f}%)")
+        print(f"   FFs : Real {row['Real_FFs']:>8.0f} | Pred {row['Pred_FFs']:>8.0f} (Erro: {row['Err%_FFs']:>6.2f}%)")
+        print(f"   BRAM: Real {row['Real_BRAM']:>8.1f} | Pred {row['Pred_BRAM']:>8.1f} (Erro: {row['Err%_BRAM']:>6.2f}%)")
+        if "Err%_DSP" in df.columns:
+            print(f"   DSP : Real {row['Real_DSP']:>8.0f} | Pred {row['Pred_DSP']:>8.0f} (Erro: {row['Err%_DSP']:>6.2f}%)")
+        print("-" * 60)
 
-    print("\n" + "="*80)
-    print("🚨 TOP 5 PIORES PREDIÇÕES (Maior discrepância)")
-    print("="*80)
-    worst = df_sorted.tail(5).sort_values(by='Erro_Medio', ascending=False)
-    for _, row in worst.iterrows():
+    print("\n" + "=" * 90)
+    print("🚨 TOP 5 PIORES PREDIÇÕES")
+    print("=" * 90)
+    for _, row in df_sorted.tail(5).sort_values(by="Erro_Medio", ascending=False).iterrows():
         print(f"🔻 {row['Build Name']}")
-        print(f"   LUTs: Real {row['Real_LUTs']:>6.0f} | Pred {row['Pred_LUTs']:>6.0f}  (Erro: {row['Err%_LUTs']:>6.2f}%)")
-        print(f"   FFs : Real {row['Real_FFs']:>6.0f} | Pred {row['Pred_FFs']:>6.0f}  (Erro: {row['Err%_FFs']:>6.2f}%)")
-        print(f"   BRAM: Real {row['Real_BRAM']:>6.1f} | Pred {row['Pred_BRAM']:>6.1f}  (Erro: {row['Err%_BRAM']:>6.2f}%)")
-        print("-" * 50)
+        print(f"   LUTs: Real {row['Real_LUTs']:>8.0f} | Pred {row['Pred_LUTs']:>8.0f} (Erro: {row['Err%_LUTs']:>6.2f}%)")
+        print(f"   FFs : Real {row['Real_FFs']:>8.0f} | Pred {row['Pred_FFs']:>8.0f} (Erro: {row['Err%_FFs']:>6.2f}%)")
+        print(f"   BRAM: Real {row['Real_BRAM']:>8.1f} | Pred {row['Pred_BRAM']:>8.1f} (Erro: {row['Err%_BRAM']:>6.2f}%)")
+        if "Err%_DSP" in df.columns:
+            print(f"   DSP : Real {row['Real_DSP']:>8.0f} | Pred {row['Pred_DSP']:>8.0f} (Erro: {row['Err%_DSP']:>6.2f}%)")
+        print("-" * 60)
+
 
 if __name__ == "__main__":
     main()

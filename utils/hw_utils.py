@@ -932,6 +932,7 @@ class utils():
                 target_fps                  = target_fps_local,
                 synth_clk_period_ns         = 10.0,
                 fpga_part                   = fpga_part,
+                large_fifo_mem_style        = build_cfg.LargeFIFOMemStyle.AUTO,
                 split_large_fifos           = True,
                 shell_flow_type             = build_cfg.ShellFlowType.VIVADO_ZYNQ,
                 generate_outputs            = [
@@ -942,7 +943,7 @@ class utils():
                 ],
                 steps                       = steps_local,
                 stitched_ip_gen_dcp         = True,
-                rtlsim_batch_size           = 1000,
+                rtlsim_batch_size           = 100,
             )
 
             build.build_dataflow_cfg(model_file_local, cfg_estimates)

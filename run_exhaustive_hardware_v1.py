@@ -213,13 +213,20 @@ def generate_map(model_info, base_build_dir, fpga_part, starting_folding=None):
         print(f"-> Ponto #1 salvo em {csv_path}!")
         
         # CHECAGEM DE ORÇAMENTO (BUDGET OVERFLOW)
-        if area_constraints:
+        if area_constraints is not None:
             area_data = utils.extract_area_from_rpt(baseline_dir)
             if area_data:
-                exceeded = [f"{k} ({area_data.get(k,0)}/{v})" for k, v in area_constraints.items() if area_data.get(k, 0) > v]
-                if exceeded:
-                    print(f"[!] Baseline violou limites do request.json: {exceeded}. Interrompendo.")
+                exceeded_all = [f"{k} ({area_data.get(k,0)}/{v})" for k, v in area_constraints.items() if area_data.get(k, 0) > v]
+                
+                # Recursos "fatais" que interrompem o processo
+                fatal_keys = ["Total LUTs", "FFs", "DSP Blocks"]
+                exceeded_fatal = [f"{k} ({area_data.get(k,0)}/{v})" for k, v in area_constraints.items() if k in fatal_keys and area_data.get(k, 0) > v]
+                
+                if exceeded_fatal:
+                    print(f"[!] Baseline violou limites CRÍTICOS (Lógica/DSP) do request.json: {exceeded_fatal}. Interrompendo.")
                     return
+                elif exceeded_all:
+                    print(f"[!] AVISO: Baseline violou limites do request.json (BRAM), mas continuará: {exceeded_all}")
 
     current_folding = reset_folding
     last_build_dir = baseline_dir
@@ -265,13 +272,21 @@ def generate_map(model_info, base_build_dir, fpga_part, starting_folding=None):
             print(f"-> Ponto #{run_counter} anotado com sucesso!")
             
             # CHECAGEM DE ORÇAMENTO (BUDGET OVERFLOW)
-            if area_constraints:
+            if area_constraints is not None:
                 area_data = utils.extract_area_from_rpt(current_build_dir)
                 if area_data:
-                    exceeded = [f"{k} ({area_data.get(k,0)}/{v})" for k, v in area_constraints.items() if area_data.get(k, 0) > v]
-                    if exceeded:
-                        print(f"[!] Run #{run_counter} violou limites do request.json: {exceeded}. Interrompendo algoritmo.")
+                    constraints_dict: dict[str, float] = area_constraints # type: ignore
+                    exceeded_all = [f"{k} ({area_data.get(k,0)}/{v})" for k, v in constraints_dict.items() if area_data.get(k, 0) > v]
+                    
+                    # Recursos "fatais" que interrompem o processo
+                    fatal_keys = ["Total LUTs", "FFs", "DSP Blocks"]
+                    exceeded_fatal = [f"{k} ({area_data.get(k,0)}/{v})" for k, v in constraints_dict.items() if k in fatal_keys and area_data.get(k, 0) > v]
+                    
+                    if exceeded_fatal:
+                        print(f"[!] Run #{run_counter} violou limites CRÍTICOS (Lógica/DSP) do request.json: {exceeded_fatal}. Interrompendo algoritmo.")
                         break
+                    elif exceeded_all:
+                        print(f"[!] AVISO: Run #{run_counter} violou limites do request.json (BRAM), mas continuará: {exceeded_all}")
         
         last_build_dir = current_build_dir
         

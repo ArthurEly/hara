@@ -1,0 +1,25 @@
+{
+    "model_id": "CIFAR10_1W1A",
+    "simulation_mode": false,
+    "fpga_part": "xc7z020clg400-1",
+    "min_fps": 500,
+    "target_fps": 5000000,
+    "num_builds": 5,
+    "save_builds": false,
+    "area_constraints": {
+        "Total LUTs": 53200,
+        "FFs": 106400,
+        "BRAM (36k)": 140,
+        "DSP Blocks": 220
+    },
+    "fixed_resources": {
+        "MVAU_hls": {
+            "ram_style": "distributed",
+            "resType": "dsp"
+        },
+        "MVAU_rtl": {
+            "ram_style": "distributed",
+            "resType": "dsp"
+        }
+    }
+}

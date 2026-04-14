@@ -26,7 +26,7 @@ from finn.transformation.fpgadataflow.insert_fifo import InsertFIFO
 
 # Integração com o Preditor de Profundidade
 try:
-    from predict_fifo_depths import predict_fifo_depths
+    from predict_fifo_depths import predict_fifo_depths_xgb
     _FIFO_PREDICTOR_AVAILABLE = True
 except ImportError:
     _FIFO_PREDICTOR_AVAILABLE = False
@@ -105,7 +105,7 @@ class MultiModuleLearner:
         """Carrega os pkls da pasta retrieval/results/trained_models/."""
         if not os.path.isdir(self.models_dir): return
         for fname in os.listdir(self.models_dir):
-            if not fname.endswith(".pkl") or "depth" in fname: continue
+            if not fname.endswith(".pkl"): continue
             m = re.match(r"(?:exhaustive_)?(.+?)_model\.pkl$", fname)
             if not m: continue
             key = m.group(1)
@@ -202,16 +202,116 @@ class MultiModuleLearner:
         
         # --- O ROTEADOR DE ESPECIALISTAS (Mixture of Experts) ---
         if "StreamingFIFO" in module_key:
-            # Decide o universo usando a função determinística que criamos
-            mem_type = self._classify_fifo_memory(node_attrs, folding_cfg, depth)
-            
-            # Muda o module_key dinamicamente para o modelo correto!
-            module_key = f"StreamingFIFO_{mem_type}"
+            module_key = "SplitFIFO_area"
             
         model_obj = self._models.get(module_key)
         if not model_obj: return None
-
         
+        # --- LÓGICA ESPECIAL PARA FATIAS E AUTO-STYLE (SPLIT_FIFO) ---
+        if module_key == "SplitFIFO_area":
+            from predict_fifo_utils import finn_partition_fifo, prepare_fifo_features
+            
+            # RECUPERA O TENSOR (BITS e IN_WIDTH)
+            input_tensor = node_attrs.get("_in_tensor")
+            bits = 0
+            if input_tensor and self.current_wrapper:
+                dtype = self.current_wrapper.get_tensor_datatype(input_tensor)
+                bits = self._extract_bitwidth(str(dtype))
+            if bits == 0: bits = 8
+            
+            parallel = inst_folding.get("PE", inst_folding.get("SIMD", 1))
+            in_width = bits * parallel
+            
+            r_style = node_attrs.get("ram_style", "auto")
+            if isinstance(r_style, bytes): r_style = r_style.decode("utf-8")
+            
+            i_style = node_attrs.get("impl_style", "rtl")
+            if isinstance(i_style, bytes): i_style = i_style.decode("utf-8")
+            r_style = r_style.lower()
+            
+            slices = []
+            
+            # Config override do JSON
+            matched_cfg = {}
+            for k, v in folding_cfg.items():
+                clean_k = k.replace("_rtl", "").replace("_hls", "")
+                if clean_k == layer_name:
+                    matched_cfg = v
+                    break
+                    
+            user_r_style = matched_cfg.get("ram_style")
+            if user_r_style is not None:
+                r_style = user_r_style
+                
+            user_i_style = matched_cfg.get("impl_style")
+            if user_i_style is not None:
+                i_style = user_i_style
+                
+            # Se ainda for "auto", aplicamos a heurística do Vivado:
+            if "auto" in r_style or r_style == "":
+                decision_style = "block" if depth > 512 else "distributed"
+            else:
+                decision_style = r_style
+                
+            # Regra de Ouro do hardware: Vivado/FINN não gastam BRAM e forçam LUT (distributed)
+            # para qualquer FIFO com depth menor ou igual a 256.
+            if depth <= 256:
+                decision_style = "distributed"
+                
+            # FINN executa a pass *SplitLargeFIFOs* sobre o grafo ONNX logo no início,
+            # então ele particionará em pedaços binários independentemente de ser rtl ou vivado!
+            slices = finn_partition_fifo(depth, decision_style)
+            
+            accumulated = {"Total LUT": 0.0, "Total FFs": 0.0, "BRAM (36k eq.)": 0.0, "DSP Blocks": 0.0}
+            
+            for s in slices:
+                specialist_name = "SplitFIFO_block" if s["ram_style"] == "block" else "SplitFIFO_distributed"
+                spec_model = self._models.get(specialist_name)
+                
+                if not spec_model:
+                    continue
+
+                feat = prepare_fifo_features(s["depth"], in_width, s["ram_style"], s["impl_style"], bits, parallel)
+                X_input = [float(feat.get(f, 0.0)) for f in spec_model.feature_names]
+                X_arr = np.array(X_input, dtype=np.float32).reshape(1, -1)
+                
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    preds = spec_model.model.predict(X_arr)[0]
+                
+                preds = np.maximum(0, preds)
+                logic_luts, lutrams, srls, total_ffs, ramb36_ml, ramb18_ml, dsp = preds
+                
+                # Heurística Determinística (Substitui XGBoost em casos de Extrapolação)
+                ramb36_final = 0.0
+                ramb18_final = 0.0
+                
+                # Vivado xpm_fifo_axis (AXI-Stream) sempre padas a in_width para múltiplos de 8 bits
+                axi_width = int(np.ceil(in_width / 8.0) * 8)
+                capacity = s["depth"] * axi_width
+                
+                if s["ram_style"] == "block":
+                    # Regra de Alocação de Macro do Vivado (xpm_fifo_axis)
+                    if capacity <= 18432:
+                        ramb18_final = 1.0
+                    else:
+                        ramb36_final = float(np.ceil(capacity / 36864.0))
+                elif s["ram_style"] == "distributed" and s.get("impl_style") == "vivado":
+                    # Árvores de Decisão (XGBoost) não interpolam fora do domínio de treino. 
+                    # Uma depth gigante de 8192 causará um erro de flatline.
+                    # Mas em hardware real (LUTRAM logic), a área é 100% linear à capacidade AXI!
+                    logic_luts = float((capacity / 20.4) + 40.0)
+                    lutrams = 0.0
+                    srls = 0.0
+                    total_ffs = float((capacity / 34.0) + 60.0)
+                
+                accumulated["Total LUT"] += float(logic_luts + lutrams + srls)
+                accumulated["Total FFs"] += float(total_ffs)
+                accumulated["BRAM (36k eq.)"] += float(ramb36_final + (ramb18_final * 0.5))
+                accumulated["DSP Blocks"] += float(np.round(dsp * 2) / 2)
+            
+            return accumulated
+
         raw_data["depth"] = depth
         raw_data["isRTL"] = 1 if "rtl" in layer_name.lower() else 0
         raw_data["isHLS"] = 1 if "hls" in layer_name.lower() else 0
@@ -232,16 +332,7 @@ class MultiModuleLearner:
         mem_type = self._classify_fifo_memory(node_attrs, folding_cfg, depth)
         raw_data["is_bram"] = 1 if mem_type == "BRAM" else 0
 
-        if "StreamingFIFO" in module_key:
-            print(f"[DEBUG FIFO] {layer_name} | mem={mem_type} | depth={depth} | inW={in_width} | cap={in_width*depth}")
-            # Precisamos recriar exatamente as features logarítmicas do treino
-            bit_cap = in_width * depth
-            raw_data["bit_capacity"] = np.log1p(bit_cap)
-            raw_data["inWidth"] = np.log1p(in_width)
-            raw_data["depth"] = np.log1p(depth)
-            
-            if in_width >= 1:
-                print(f"[DEBUG FIFO] {layer_name} | log(Width)={raw_data['inWidth']:.2f} | log(Cap)={raw_data['bit_capacity']:.2f}")
+        # Nenhuma lógica adicional necessária para StreamingFIFO (já processada)
 
         # One-Hot Encoding
         for cat in ["ram_style", "resType", "mem_mode", "binaryXnorMode", "impl_style"]:
@@ -317,9 +408,12 @@ class MultiModuleLearner:
         results = []
         for folding in foldings:
             raw_depths = {}
-            if _FIFO_PREDICTOR_AVAILABLE:
-                try: raw_depths = predict_fifo_depths(onnx_path, folding)
-                except: pass
+            if _FIFO_PREDICTOR_AVAILABLE and "StreamingFIFO_depth" in self._models:
+                try: 
+                    depth_model = self._models["StreamingFIFO_depth"]
+                    raw_depths = predict_fifo_depths_xgb(onnx_path, folding, depth_model)
+                except Exception as e:
+                    print(f"[MultiModuleLearner] Erro ao prever depths: {e}")
             
             fifo_depths = {k.replace("_rtl", ""): v for k, v in raw_depths.items()}
             total = {col: 0.0 for col in TARGET_COLS}
@@ -368,14 +462,25 @@ class MultiModuleLearner:
                 node_dict["mac_complexity"] = float(in_bits * w_bits * pe * simd)
                 
                 # 4. Roteamento Inteligente
-                d = fifo_depths.get(name, 2) if "StreamingFIFO" in op else 2
+                matched_cfg = {}
+                for k, v in folding.items():
+                    clean_k = k.replace("_rtl", "").replace("_hls", "")
+                    if clean_k == name:
+                        matched_cfg = v
+                        break
+                
+                user_depth = matched_cfg.get("depth")
+                if user_depth is not None:
+                    d = user_depth
+                else:
+                    d = fifo_depths.get(name, 2)
+                    
                 module_key = base_key
                 
                 if base_key == "MVAU":
                     module_key = "MVAU_1Bit" if w_bits == 1 else "MVAU_MultiBit"
                 elif base_key == "StreamingFIFO":
-                    mem_type = self._classify_fifo_memory(node_dict, folding, d)
-                    module_key = f"StreamingFIFO_{mem_type}"
+                    module_key = "SplitFIFO_area"
     
                 if "MVAU" in base_key:
                     # O module_key agora é mapeado diretamente para o especialista daquela rede
