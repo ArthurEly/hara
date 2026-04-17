@@ -1,0 +1,121 @@
+{
+  "model": "SAT6_T2W2_DROP5",
+  "run_id": "9",
+  "fps": 11837.12,
+  "acc_drop": 5.0,
+  "budget_pct": 10,
+  "folding_config": {
+    "Defaults": {},
+    "FMPadding_rtl_0": {
+      "SIMD": 1
+    },
+    "ConvolutionInputGenerator_rtl_0": {
+      "SIMD": 2,
+      "parallel_window": 0,
+      "ram_style": "distributed"
+    },
+    "MVAU_hls_0": {
+      "PE": 1,
+      "SIMD": 12,
+      "ram_style": "block",
+      "resType": "dsp",
+      "mem_mode": "internal_decoupled",
+      "runtime_writeable_weights": 0
+    },
+    "FMPadding_rtl_1": {
+      "SIMD": 1
+    },
+    "ConvolutionInputGenerator_rtl_1": {
+      "SIMD": 1,
+      "parallel_window": 0,
+      "ram_style": "distributed"
+    },
+    "MVAU_hls_1": {
+      "PE": 1,
+      "SIMD": 3,
+      "ram_style": "block",
+      "resType": "dsp",
+      "mem_mode": "internal_decoupled",
+      "runtime_writeable_weights": 0
+    },
+    "FMPadding_rtl_2": {
+      "SIMD": 1
+    },
+    "ConvolutionInputGenerator_rtl_2": {
+      "SIMD": 1,
+      "parallel_window": 0,
+      "ram_style": "distributed"
+    },
+    "MVAU_hls_2": {
+      "PE": 1,
+      "SIMD": 1,
+      "ram_style": "block",
+      "resType": "dsp",
+      "mem_mode": "internal_decoupled",
+      "runtime_writeable_weights": 0
+    },
+    "FMPadding_rtl_3": {
+      "SIMD": 1
+    },
+    "ConvolutionInputGenerator_rtl_3": {
+      "SIMD": 1,
+      "parallel_window": 0,
+      "ram_style": "distributed"
+    },
+    "MVAU_hls_3": {
+      "PE": 1,
+      "SIMD": 1,
+      "ram_style": "block",
+      "resType": "dsp",
+      "mem_mode": "internal_decoupled",
+      "runtime_writeable_weights": 0
+    },
+    "MVAU_hls_4": {
+      "PE": 1,
+      "SIMD": 1,
+      "ram_style": "block",
+      "resType": "dsp",
+      "mem_mode": "internal_decoupled",
+      "runtime_writeable_weights": 0
+    },
+    "LabelSelect_hls_0": {
+      "PE": 1
+    }
+  },
+  "fifo_depths": {
+    "StreamingFIFO_0": 866,
+    "StreamingFIFO_1": 2,
+    "StreamingFIFO_2": 183,
+    "StreamingFIFO_3": 288,
+    "StreamingFIFO_4": 2,
+    "StreamingFIFO_5": 101,
+    "StreamingFIFO_6": 2,
+    "StreamingFIFO_7": 86,
+    "StreamingFIFO_8": 65,
+    "StreamingFIFO_9": 2,
+    "StreamingFIFO_10": 2,
+    "StreamingFIFO_11": 2,
+    "StreamingFIFO_12": 2,
+    "StreamingFIFO_13": 108,
+    "StreamingFIFO_14": 2,
+    "StreamingFIFO_15": 2,
+    "StreamingFIFO_16": 2,
+    "StreamingFIFO_17": 2,
+    "StreamingFIFO_18": 49,
+    "StreamingFIFO_19": 2,
+    "StreamingFIFO_20": 2,
+    "StreamingFIFO_21": 2
+  },
+  "pred_lut": 5122,
+  "pred_ff": 4439,
+  "pred_bram": 3.1,
+  "pred_dsp": 18,
+  "pred_util_pct": 9.63,
+  "_is_fallback": false,
+  "hls_ok": true,
+  "run_dir": "/home/arthurely/Desktop/finn_chi2p/hara/hls_candidate_builds/e2e_budget10_gamma0.0/hls_cand01_drop5_run9",
+  "refined_lut": 4815,
+  "refined_ff": 4325,
+  "refined_bram": 3.6,
+  "refined_dsp": 18
+}

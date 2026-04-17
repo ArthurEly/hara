@@ -1,0 +1,4 @@
+model,run_id,fps,acc_drop,budget_pct,pred_lut,pred_ff,pred_bram,pred_dsp,refined_lut,refined_ff,refined_bram,refined_dsp,hls_ok,run_dir
+SAT6_T2W2_DROP5,9,11837.12,5.0,10,5122,4439,3.1,18,2629,1912,1.0,0,True,/home/arthurely/Desktop/finn_chi2p/hara/hls_candidate_builds/hls_cand01_drop5_run9
+SAT6_T2W2_DROP2,8,8012.82,2.0,10,5215,4539,3.1,18,2986,2128,4.5,0,True,/home/arthurely/Desktop/finn_chi2p/hara/hls_candidate_builds/hls_cand02_drop2_run8
+SAT6_T2W2_DROP4,11,9300.6,4.0,10,5202,4607,3.6,22,2611,2137,4.0,0,True,/home/arthurely/Desktop/finn_chi2p/hara/hls_candidate_builds/hls_cand03_drop4_run11

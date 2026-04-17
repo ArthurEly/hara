@@ -1386,6 +1386,14 @@ def get_finn_ready_model(model_info, build_dir):
 
     print(f"-> Carregando modelo '{topology_id}' (Loader: {loader}, Source: {source})")
 
+    # === LOADER: prebuilt_onnx (ONNX já pronto, pula todas as transformações) ===
+    if loader == "prebuilt_onnx":
+        onnx_path = model_info["onnx_path"]
+        if not os.path.exists(onnx_path):
+            raise FileNotFoundError(f"ONNX prebuilt não encontrado: {onnx_path}")
+        print(f"-> [prebuilt_onnx] Usando ONNX pronto: {onnx_path}")
+        return onnx_path
+
     # === NOVO LOADER: hara_pruned ===
     if loader == "hara_pruned":
         model_path = model_info["model_path"]

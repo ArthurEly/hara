@@ -26,6 +26,42 @@ SAT6_T2W2:
   topology_id: "SAT6_T2"
   quant: 2 
 
+SAT6_T2W2_PREBUILT:
+  loader: "prebuilt_onnx"
+  onnx_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/sat6_t2_baseline_finn_ready.onnx"
+  topology_id: "SAT6_T2"
+  quant: 2
+
+SAT6_T2W2_DROP1:
+  loader: "prebuilt_onnx"
+  onnx_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/final_optimized_drop1_model_finn_ready.onnx"
+  topology_id: "SAT6_T2"
+  quant: 2
+
+SAT6_T2W2_DROP2:
+  loader: "prebuilt_onnx"
+  onnx_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/final_optimized_drop2_model_finn_ready.onnx"
+  topology_id: "SAT6_T2"
+  quant: 2
+
+SAT6_T2W2_DROP3:
+  loader: "prebuilt_onnx"
+  onnx_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/final_optimized_drop3_model_finn_ready.onnx"
+  topology_id: "SAT6_T2"
+  quant: 2
+
+SAT6_T2W2_DROP4:
+  loader: "prebuilt_onnx"
+  onnx_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/final_optimized_drop4_model_finn_ready.onnx"
+  topology_id: "SAT6_T2"
+  quant: 2
+
+SAT6_T2W2_DROP5:
+  loader: "prebuilt_onnx"
+  onnx_path: "/home/arthurely/Desktop/finn_chi2p/hara/models/SAT6/final_optimized_drop5_model_finn_ready.onnx"
+  topology_id: "SAT6_T2"
+  quant: 2
+
 SAT6_T2W4:
   loader: "hara_internal"
   source: "local_file"

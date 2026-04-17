@@ -1,23 +1,53 @@
 import numpy as np
-import math
 
-def finn_partition_fifo(total_depth, user_ram_style="block"):
-    """Simula o particionamento do FINN em potências de 2, imitando perfeitamente o SplitLargeFIFOs."""
-    slices = []
-    remaining_depth = total_depth
-    
-    # O FINN sempre particiona descendo pelas maiores potências de 2!
-    while remaining_depth > 0:
-        power = int(math.log2(remaining_depth))
-        chunk_depth = int(math.pow(2, power))
-        
-        if chunk_depth >= 512:
-            slices.append({"depth": chunk_depth, "ram_style": user_ram_style, "impl_style": "vivado"})
+def finn_partition_fifo(total_depth, user_ram_style="block",
+                        max_qsrl_depth=256, max_vivado_depth=32768):
+    """Replica exatamente o get_fifo_split_configs do FINN (set_fifo_depths.py).
+
+    Regras:
+    - depth <= max_qsrl_depth (256): FIFO única RTL, sem split.
+    - depth >  max_qsrl_depth: divide em potências de 2 (descendo), onde
+      pedaços > 256 usam impl_style=vivado e pedaços <= 256 usam impl_style=rtl.
+    """
+
+    def floor_pow2(x):
+        if (x & (x - 1) == 0) and x != 0:
+            return x
+        return 1 << ((x - 1).bit_length() - 1)
+
+    def decompose_pow2(x):
+        if x <= max_qsrl_depth:
+            return [x]
+        r = floor_pow2(x)
+        if x == r:
+            return [x]
+        return [r, *decompose_pow2(x - r)]
+
+    # Caso trivial: FIFO pequena → única, RTL
+    if total_depth <= max_qsrl_depth:
+        return [{"depth": total_depth, "ram_style": "distributed", "impl_style": "rtl"}]
+
+    # 1ª passagem: respeitar max_vivado_depth (32k)
+    pass1 = []
+    remainder = total_depth
+    while remainder:
+        if remainder > max_vivado_depth:
+            pass1.append(max_vivado_depth)
+            remainder -= max_vivado_depth
         else:
-            slices.append({"depth": chunk_depth, "ram_style": "distributed", "impl_style": "rtl"})
-            
-        remaining_depth -= chunk_depth
-        
+            pass1.append(remainder)
+            remainder = 0
+
+    # 2ª passagem: decompor em potências de 2
+    pass2 = [d for chunk in pass1 for d in decompose_pow2(chunk)]
+
+    # Atribuir impl_style a cada fatia
+    slices = []
+    for d in pass2:
+        if d <= max_qsrl_depth:
+            slices.append({"depth": d, "ram_style": "distributed", "impl_style": "rtl"})
+        else:
+            slices.append({"depth": d, "ram_style": user_ram_style, "impl_style": "vivado"})
     return slices
 
 def prepare_fifo_features(depth, in_width, ram_style, impl_style, bits, simd):

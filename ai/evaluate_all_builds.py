@@ -8,30 +8,74 @@ Atualizações desta versão:
 - caminho de modelos alinhado com results/trained_models;
 - relatório inclui DSP;
 - mensagens explícitas sobre ausência dos artefatos auxiliares de FIFO.
+- Adicionado suporte opcional para injeção de True Depths (validação do modelo de área isolado).
 """
 
 import glob
 import json
 import os
+import re
+import numpy as np
 
 import pandas as pd
 from tqdm import tqdm
+
+from qonnx.core.modelwrapper import ModelWrapper
+from onnx import helper
 
 from multi_module_learner import MultiModuleLearner
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_BUILDS_DIR = "/home/arthurely/Desktop/finn_chi2p/hara/exhaustive_hw_builds"
 MODELS_DIR = os.path.join(BASE_DIR, "retrieval", "results", "trained_models")
-ALLOWED_DATASETS = ["MNIST_1W1A", "SAT6_T2W2"]
+ALLOWED_DATASETS = ["SAT6_T2W2"]
 
+# ==============================================================================
+# TOGGLE: Habilitar a injeção das depths reais da simulação (True Depths)
+# ==============================================================================
+USE_TRUE_DEPTHS = False 
+# ==============================================================================
 
 def calculate_mape(y_true, y_pred):
     if y_true == 0:
         return 0.0 if y_pred == 0 else 100.0
     return abs((y_pred - y_true) / y_true) * 100.0
 
+def extract_true_fifo_depths(stitched_onnx_path):
+    """
+    Abre o ONNX final do FINN e extrai a profundidade real de cada FIFO lógica.
+    """
+    if not os.path.exists(stitched_onnx_path):
+        return None
+        
+    try:
+        model = ModelWrapper(stitched_onnx_path)
+    except Exception as e:
+        print(f"[!] Erro ao abrir ONNX costurado: {e}")
+        return None
+        
+    depths = {}
+    for node in model.graph.node:
+        if "FIFO" in node.op_type:
+            # Reconstrói o nome lógico base limpo (remove sufixos finais _0, _1)
+            name_clean = re.sub(r'_\d+$', '', node.name)
+                
+            depth = 2
+            for attr in node.attribute:
+                if attr.name == "depth":
+                    val = helper.get_attribute_value(attr)
+                    if isinstance(val, (list, tuple, np.ndarray)):
+                        depth = int(val[0]) if len(val) > 0 else 2
+                    else:
+                        depth = int(val)
+                    break
+                    
+            depths[name_clean] = depths.get(name_clean, 0) + depth
+            
+    return depths
 
 def main():
+    print(f"[HARA Validator] Modo True Depths Ativado: {USE_TRUE_DEPTHS}")
     print("[HARA Validator] Inicializando MultiModuleLearner...")
     learner = MultiModuleLearner(MODELS_DIR)
 
@@ -75,6 +119,8 @@ def main():
             run_dir = os.path.join(base_dir, hw_name)
             onnx_path = os.path.join(run_dir, "intermediate_models", "step_generate_estimate_reports.onnx")
             config_path = os.path.join(run_dir, "final_hw_config.json")
+            stitched_onnx_path = os.path.join(run_dir, "intermediate_models", "step_create_stitched_ip.onnx")
+            
             if not os.path.exists(onnx_path) or not os.path.exists(config_path):
                 status["missing_onnx"] += 1
                 continue
@@ -94,8 +140,18 @@ def main():
                 status["filtered_out"] += 1
                 continue
 
+            # Extração da Verdade Absoluta (Ground Truth Depths)
+            true_depths = None
+            if USE_TRUE_DEPTHS:
+                true_depths = extract_true_fifo_depths(stitched_onnx_path)
+
             try:
-                preds = learner.predict(onnx_path, [cfg])[0]
+                # Modificado apenas aqui para aceitar as profundidades precomputadas
+                preds = learner.predict(
+                    onnx_path, 
+                    [cfg], 
+                    precomputed_depths=[true_depths] if true_depths else None
+                )[0]
             except Exception as e:
                 print(f"\n[!] Erro no ML para {bateria_name}/{hw_name}: {e}")
                 status["ml_error"] += 1
@@ -147,7 +203,7 @@ def main():
     csv_out = os.path.join(BASE_DIR, "hara_validation_results.csv")
     df_out.to_csv(csv_out, index=False)
 
-    print(f"\n🏆 MÉDIA DE ERRO GLOBAL (MAPE) DOS {status['success']} BUILDS:")
+    print(f"\n🏆 MÉDIA DE ERRO GLOBAL (MAPE) DOS {status['success']} BUILDS (Modo True Depths: {USE_TRUE_DEPTHS}):")
     print(f"    - LUTs: {df_out['Err%_LUTs'].mean():.2f}%")
     print(f"    - FFs : {df_out['Err%_FFs'].mean():.2f}%")
     print(f"    - BRAM: {df_out['Err%_BRAM'].mean():.2f}%")

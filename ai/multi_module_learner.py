@@ -14,6 +14,7 @@ import pickle
 import warnings
 import numpy as np
 import pandas as pd
+import sys 
 
 import onnx
 from onnx import helper
@@ -25,12 +26,21 @@ from finn.transformation.fpgadataflow.insert_dwc import InsertDWC
 from finn.transformation.fpgadataflow.insert_fifo import InsertFIFO
 
 # Integração com o Preditor de Profundidade
+_FIFO_PREDICTOR_AVAILABLE = False
 try:
     from predict_fifo_depths import predict_fifo_depths_xgb
     _FIFO_PREDICTOR_AVAILABLE = True
 except ImportError:
-    _FIFO_PREDICTOR_AVAILABLE = False
-    print("[MultiModuleLearner] AVISO: predict_fifo_depths não encontrado.")
+    try:
+        # Fallback: resolve relative to this file's directory
+        _ai_dir = os.path.dirname(os.path.abspath(__file__))
+        if _ai_dir not in sys.path:
+            sys.path.insert(0, _ai_dir)
+        from predict_fifo_depths import predict_fifo_depths_xgb
+        _FIFO_PREDICTOR_AVAILABLE = True
+    except ImportError:
+        print("[MultiModuleLearner] AVISO: predict_fifo_depths não encontrado.")
+print(f"[MultiModuleLearner] FIFO Predictor: {'ATIVO' if _FIFO_PREDICTOR_AVAILABLE else 'INATIVO'}")
 
 # =============================================================================
 # MAPEAMENTOS E CONFIGURAÇÕES
@@ -46,13 +56,15 @@ MODULE_MODEL_MAP = {
     "StreamingFIFO": "StreamingFIFO",
 }
 
-TARGET_COLS = ["Total LUT", "Total FFs", "BRAM (36k eq.)", "DSP Blocks"]
+TARGET_COLS = ["Total LUT", "Logic LUTs", "LUTRAMs", "SRLs", "Total FFs", "BRAM (36k eq.)", "DSP Blocks"]
 SUPPORTED_TOPOLOGIES = [
-    "MNIST_1W1A", 
-    "MNIST_2W2A", 
-    "SAT6_T2W2", 
-    "SAT6_T2W4", 
-    "SAT6_T2W8"
+    "MNIST_1W1A",
+    "MNIST_2W2A",
+    "SAT6_T2W2",
+    "SAT6_T2W4",
+    "SAT6_T2W8",
+    "CIFAR10_1W1A",
+    "CIFAR10_2W2A",
 ]
 # =============================================================================
 # MODELO ESPECIALISTA (Wrapper XGBoost)
@@ -62,7 +74,8 @@ class _PerModuleModel:
     def __init__(self, pkl_path: str):
         with open(pkl_path, "rb") as f:
             obj = pickle.load(f)
-        self.model = obj["model"]
+        self.obj_dict = obj
+        self.model = obj.get("model") or obj.get("stage2_regressor")
         self.feature_names = obj.get("feature_names", [])
         self.target_cols = obj.get("target_cols", TARGET_COLS)
         
@@ -123,35 +136,39 @@ class MultiModuleLearner:
     # ------------------------------------------------------------------
 
     def _expand_topology(self, onnx_path: str):
-        """Expande o grafo inserindo FIFOs e DWCs virtuais."""
-        print(f"\n[HARA] Analisando pipeline: {os.path.basename(onnx_path)}")
-        model = ModelWrapper(onnx_path)
-        
-        # Transformações lógicas do FINN
-        model = model.transform(InsertDWC())
-        model = model.transform(InsertFIFO(create_shallow_fifos=True))
-        model = model.transform(GiveUniqueNodeNames())
-        model = model.transform(GiveReadableTensorNames())
-        
-        self.current_wrapper = model # Salva para consulta de bitwidths via tensores
-        
-        nodes_list = []
-        for node in model.graph.node:
-            attrs = {"op_type": node.op_type, "name": node.name}
-            for attr in node.attribute:
-                val = helper.get_attribute_value(attr)
-                if isinstance(val, bytes):
-                    try: val = val.decode("utf-8")
-                    except: val = str(val)
-                elif isinstance(val, (list, tuple, np.ndarray)):
-                    val = int(np.prod(val)) if len(val) > 0 else 0
-                attrs[attr.name] = val
+            """Expande o grafo inserindo FIFOs e DWCs virtuais."""
+            print(f"\n[HARA] Analisando pipeline: {os.path.basename(onnx_path)}")
+            model = ModelWrapper(onnx_path)
             
-            # Metadata interna para busca de largura de banda
-            attrs["_in_tensor"] = node.input[0]
-            nodes_list.append(attrs)
+            # Transformações lógicas do FINN
+            model = model.transform(InsertDWC())
+            model = model.transform(InsertFIFO(create_shallow_fifos=True))
+            model = model.transform(GiveUniqueNodeNames())
+            model = model.transform(GiveReadableTensorNames())
             
-        return nodes_list
+            self.current_wrapper = model # Salva para consulta de bitwidths via tensores
+            
+            nodes_list = []
+            for node in model.graph.node:
+                attrs = {"op_type": node.op_type, "name": node.name}
+                for attr in node.attribute:
+                    val = helper.get_attribute_value(attr)
+                    if isinstance(val, bytes):
+                        try: val = val.decode("utf-8")
+                        except: val = str(val)
+                    elif isinstance(val, (list, tuple, np.ndarray)):
+                        # IMPORTANTE: Preservar o folded_shape como lista para extrair a largura do barramento!
+                        if attr.name == "folded_shape":
+                            val = list(val)
+                        else:
+                            val = int(np.prod(val)) if len(val) > 0 else 0
+                    attrs[attr.name] = val
+                
+                # Metadata interna para busca de largura de banda
+                attrs["_in_tensor"] = node.input[0]
+                nodes_list.append(attrs)
+                
+            return nodes_list
 
     # ------------------------------------------------------------------
     # PREDITOR DE ÁREA POR NÓ
@@ -190,14 +207,14 @@ class MultiModuleLearner:
         raw_data.update(inst_folding)
         
         # --- ROTEADOR MVAU (1-Bit vs Multi-Bit) ---
-        if "MVAU" in module_key:            
-            print(f"\n--- [DEBUG MVAU INPUT: {layer_name}] ---")
-            print(f"  Especialista Alvo: {module_key}")
-            print(f"  weightDataType: {raw_data.get('weightDataType')}")
-            print(f"  weightDataType (bits): {raw_data.get('weightDataType (bits)')}")
-            print(f"  mac_complexity: {raw_data.get('mac_complexity')}")
-            print(f"  PE: {raw_data.get('PE')} | SIMD: {raw_data.get('SIMD')}")
-            print("------------------------------------------\n")
+        #if "MVAU" in module_key:            
+            #print(f"\n--- [DEBUG MVAU INPUT: {layer_name}] ---")
+            #print(f"  Especialista Alvo: {module_key}")
+            #print(f"  weightDataType: {raw_data.get('weightDataType')}")
+            #print(f"  weightDataType (bits): {raw_data.get('weightDataType (bits)')}")
+            #print(f"  mac_complexity: {raw_data.get('mac_complexity')}")
+            #print(f"  PE: {raw_data.get('PE')} | SIMD: {raw_data.get('SIMD')}")
+            #print("------------------------------------------\n")
         
         
         # --- O ROTEADOR DE ESPECIALISTAS (Mixture of Experts) ---
@@ -209,7 +226,10 @@ class MultiModuleLearner:
         
         # --- LÓGICA ESPECIAL PARA FATIAS E AUTO-STYLE (SPLIT_FIFO) ---
         if module_key == "SplitFIFO_area":
-            from predict_fifo_utils import finn_partition_fifo, prepare_fifo_features
+            try:
+                from ai.predict_fifo_utils import finn_partition_fifo, prepare_fifo_features
+            except ImportError:
+                from predict_fifo_utils import finn_partition_fifo, prepare_fifo_features
             
             # RECUPERA O TENSOR (BITS e IN_WIDTH)
             input_tensor = node_attrs.get("_in_tensor")
@@ -218,9 +238,18 @@ class MultiModuleLearner:
                 dtype = self.current_wrapper.get_tensor_datatype(input_tensor)
                 bits = self._extract_bitwidth(str(dtype))
             if bits == 0: bits = 8
+
+            # inWidth correto: folded_shape[-1] × bits (AXI-S bus width per transfer).
+            folded_shape = node_attrs.get("folded_shape", [])
             
-            parallel = inst_folding.get("PE", inst_folding.get("SIMD", 1))
-            in_width = bits * parallel
+            if isinstance(folded_shape, list) and len(folded_shape) > 0:
+                # A última dimensão do folded_shape dita exatamente quantos elementos passam no barramento por ciclo.
+                parallel = int(folded_shape[-1])
+                in_width = bits * parallel
+            else:
+                # Fallback de segurança (muito raro falhar após InsertFIFO)
+                parallel = inst_folding.get("PE", inst_folding.get("SIMD", 1))
+                in_width = bits * parallel
             
             r_style = node_attrs.get("ram_style", "auto")
             if isinstance(r_style, bytes): r_style = r_style.decode("utf-8")
@@ -262,23 +291,60 @@ class MultiModuleLearner:
             # então ele particionará em pedaços binários independentemente de ser rtl ou vivado!
             slices = finn_partition_fifo(depth, decision_style)
             
-            accumulated = {"Total LUT": 0.0, "Total FFs": 0.0, "BRAM (36k eq.)": 0.0, "DSP Blocks": 0.0}
+            accumulated = {
+                "Total LUT": 0.0, 
+                "Logic LUTs": 0.0,
+                "LUTRAMs": 0.0,
+                "SRLs": 0.0,
+                "Total FFs": 0.0, 
+                "BRAM (36k eq.)": 0.0, 
+                "DSP Blocks": 0.0
+            }
             
             for s in slices:
+                # --- DETERMINISTIC RTL FIFO MODEL ---
+                # Substitui o ML por física de hardware para FIFOs RTL (que não usam BRAM)
+                if s["impl_style"] == "rtl":
+                    if s["depth"] <= 2:
+                        # FIFOs muito rasas: sem shift registers, apenas FFs.
+                        # Overhead de controle mínimo de ~22 FFs verificado empiricamente.
+                        ff_base = in_width * s["depth"] + 6.0
+                        total_ffs = max(22.0, ff_base)
+                        logic_luts = 15.0
+                        srls = 0.0
+                        lutrams = 0.0
+                    else:
+                        # FIFOs baseadas em SRL (Shift Register LUT).
+                        # O Vivado mapeia cadeias de até 32 bits num SRLC32E.
+                        srl_chains = int(np.ceil(s["depth"] / 32.0))
+                        srls = srl_chains * in_width
+                        # A lógica de controle escala com o log2 da profundidade (ponteiros)
+                        logic_luts = 30.0 + np.ceil(np.log2(s["depth"])) * 4.0
+                        lutrams = 0.0
+                        # FFs: Output register (in_width) + controle state machine/flags (~20)
+                        total_ffs = float(in_width) + 20.0
+                    
+                    accumulated["Total LUT"]   += float(logic_luts + srls)
+                    accumulated["Logic LUTs"]  += float(logic_luts)
+                    accumulated["SRLs"]        += float(srls)
+                    accumulated["Total FFs"]   += float(total_ffs)
+                    continue
+
+                # --- VIVADO/BRAM FIFO MODEL (Keep existing logic) ---
                 specialist_name = "SplitFIFO_block" if s["ram_style"] == "block" else "SplitFIFO_distributed"
                 spec_model = self._models.get(specialist_name)
-                
+
                 if not spec_model:
                     continue
 
                 feat = prepare_fifo_features(s["depth"], in_width, s["ram_style"], s["impl_style"], bits, parallel)
                 X_input = [float(feat.get(f, 0.0)) for f in spec_model.feature_names]
                 X_arr = np.array(X_input, dtype=np.float32).reshape(1, -1)
-                
+
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     preds = spec_model.model.predict(X_arr)[0]
-                
+
                 preds = np.maximum(0, preds)
                 logic_luts, lutrams, srls, total_ffs, ramb36_ml, ramb18_ml, dsp = preds
                 
@@ -306,6 +372,9 @@ class MultiModuleLearner:
                     total_ffs = float((capacity / 34.0) + 60.0)
                 
                 accumulated["Total LUT"] += float(logic_luts + lutrams + srls)
+                accumulated["Logic LUTs"] += float(logic_luts)
+                accumulated["LUTRAMs"] += float(lutrams)
+                accumulated["SRLs"] += float(srls)
                 accumulated["Total FFs"] += float(total_ffs)
                 accumulated["BRAM (36k eq.)"] += float(ramb36_final + (ramb18_final * 0.5))
                 accumulated["DSP Blocks"] += float(np.round(dsp * 2) / 2)
@@ -391,31 +460,145 @@ class MultiModuleLearner:
         # 3. Fallback: Se não houver número mas for um tipo conhecido, assume-se 8 bits
         return 8
 
-    def predict(self, onnx_path: str, foldings: list[dict]) -> list[dict]:
-        if not self.is_loaded(): return [{}] * len(foldings)
-        
-        topology_key = "UNKNOWN"
+    def _resolve_topology_key(self, onnx_path: str) -> str:
+        # Tenta buscar no caminho completo do arquivo
         for topo in SUPPORTED_TOPOLOGIES:
             if topo in onnx_path:
-                topology_key = topo
-                break
-        
-        onnx_model = onnx.load(onnx_path)
-        graph_nodes = {n.name: n for n in onnx_model.graph.node}
-        nodes_to_process = self._onnx_cache.get(onnx_path) or self._expand_topology(onnx_path)
-        self._onnx_cache[onnx_path] = nodes_to_process
-        
-        results = []
-        for folding in foldings:
-            raw_depths = {}
-            if _FIFO_PREDICTOR_AVAILABLE and "StreamingFIFO_depth" in self._models:
-                try: 
-                    depth_model = self._models["StreamingFIFO_depth"]
-                    raw_depths = predict_fifo_depths_xgb(onnx_path, folding, depth_model)
-                except Exception as e:
-                    print(f"[MultiModuleLearner] Erro ao prever depths: {e}")
+                return topo
+                
+        # Fallbacks estáticos baseados em palavras-chave do dataset
+        path_lower = onnx_path.lower()
+        if "sat6" in path_lower:
+            return "SAT6_T2W2"
+        if "mnist" in path_lower:
+            return "MNIST_1W1A"
+        if "cifar10" in path_lower:
+            return "CIFAR10_1W1A"
             
-            fifo_depths = {k.replace("_rtl", ""): v for k, v in raw_depths.items()}
+        print(f"[!] AVISO: Topologia desconhecida para {onnx_path}. Assumindo UNKNOWN.")
+        return "UNKNOWN"
+
+    def _select_depth_specialist_key(self, topology_key: str) -> str:
+        if "SAT6" in topology_key and "StreamingFIFO_depth_SAT6_T2" in self._models:
+            return "StreamingFIFO_depth_SAT6_T2"
+        if "MNIST" in topology_key and "StreamingFIFO_depth_MNIST_TFC" in self._models:
+            return "StreamingFIFO_depth_MNIST_TFC"
+        if "CIFAR10" in topology_key and "StreamingFIFO_depth_CIFAR10_CNV" in self._models:
+            return "StreamingFIFO_depth_CIFAR10_CNV"
+        if "StreamingFIFO_depth_UNIFIED" in self._models:
+            return "StreamingFIFO_depth_UNIFIED"
+        return "StreamingFIFO_depth"
+
+    def _get_onnx_fallback_depths(self, expanded_model) -> dict:
+        depths = {}
+        for gn in expanded_model.graph.node:
+            if "FIFO" in gn.op_type.upper():
+                d_val = 2
+                for a in gn.attribute:
+                    if a.name == "depth":
+                        d_val = int(helper.get_attribute_value(a))
+                depths[gn.name] = d_val
+        return depths
+
+    def predict_fifo_depths_batch(self, onnx_path: str, foldings: list[dict],
+                                   cycles_per_folding: list[dict] | None = None) -> list[dict]:
+        """Predicts FIFO depths for all foldings using the topology-specific specialist.
+
+        Args:
+            cycles_per_folding: lista de dicts com conteúdo de estimate_layer_cycles.json,
+                                 um por folding. Quando fornecido, usa ciclos reais em vez
+                                 da fórmula MH×MW — melhora muito a qualidade da predição.
+        """
+        topology_key = self._resolve_topology_key(onnx_path)
+        depth_key = self._select_depth_specialist_key(topology_key)
+
+        if onnx_path not in self._onnx_cache:
+            self._onnx_cache[onnx_path] = self._expand_topology(onnx_path)
+            fifo_count = sum(1 for n in self.current_wrapper.graph.node if "FIFO" in n.op_type.upper())
+            total_count = len(list(self.current_wrapper.graph.node))
+            print(f"[HARA] Topologia expandida: {total_count} nós, {fifo_count} FIFOs")
+
+        expanded_model = self.current_wrapper
+        onnx_fifo_depths = self._get_onnx_fallback_depths(expanded_model)
+
+        using_cycles = cycles_per_folding is not None
+        print(f"[HARA-Depth] Especialista: {depth_key} | Topologia: {topology_key} | "
+              f"FIFOs: {len(onnx_fifo_depths)} | cycles_json: {'SIM' if using_cycles else 'NAO (formula)'}")
+
+        all_depths = []
+        for i, folding in enumerate(foldings):
+            cycles_cfg = cycles_per_folding[i] if (cycles_per_folding and i < len(cycles_per_folding)) else None
+            if _FIFO_PREDICTOR_AVAILABLE and depth_key in self._models:
+                try:
+                    raw = predict_fifo_depths_xgb(
+                        expanded_model, folding, self._models[depth_key], cycles_cfg=cycles_cfg
+                    )
+                    raw = raw if raw else dict(onnx_fifo_depths)
+                except Exception:
+                    raw = dict(onnx_fifo_depths)
+            else:
+                raw = dict(onnx_fifo_depths)
+            all_depths.append({k.replace("_rtl", ""): v for k, v in raw.items()})
+
+        if all_depths and all_depths[0]:
+            vals = list(all_depths[0].values())
+            non_trivial = sum(1 for d in vals if d > 2)
+            print(f"[HARA-Depth] Folding-0 amostra: {len(vals)} FIFOs, {non_trivial} com depth>2, "
+                  f"max={max(vals)}, median={sorted(vals)[len(vals)//2]}")
+        return all_depths
+
+    def predict(self, onnx_path: str, foldings: list[dict],
+                precomputed_depths: list[dict] | None = None,
+                cycles_cfg_list: list[dict] | None = None) -> list[dict]:
+        if not self.is_loaded(): return [{}] * len(foldings)
+
+        topology_key = self._resolve_topology_key(onnx_path)
+
+        # 1. Expand topology ONCE to get the FIFOs and DWCs stitcheadas
+        if onnx_path not in self._onnx_cache:
+            self._onnx_cache[onnx_path] = self._expand_topology(onnx_path)
+            fifo_count = sum(1 for n in self.current_wrapper.graph.node if "FIFO" in n.op_type.upper())
+            total_count = len(list(self.current_wrapper.graph.node))
+            print(f"[HARA] Topologia expandida: {total_count} nós, {fifo_count} FIFOs")
+
+        nodes_to_process = self._onnx_cache[onnx_path]
+        expanded_model = self.current_wrapper
+        graph_nodes = {n.name: n for n in expanded_model.graph.node}
+
+        onnx_fifo_depths = self._get_onnx_fallback_depths(expanded_model)
+
+        # Choose depth specialist (used only when precomputed_depths is not provided)
+        depth_key = self._select_depth_specialist_key(topology_key)
+        if precomputed_depths is None:
+            print(f"[MultiModuleLearner] -> Usando especialista de depth: {depth_key} (Topo: {topology_key})")
+
+        results = []
+        for i, folding in enumerate(foldings):
+            # Use pre-computed depths if available, otherwise predict inline
+            if precomputed_depths is not None and i < len(precomputed_depths):
+                fifo_depths = precomputed_depths[i]
+            else:
+                raw_depths = {}
+                if _FIFO_PREDICTOR_AVAILABLE and depth_key in self._models:
+                    try:
+                        cycles_cfg = cycles_cfg_list[i] if (cycles_cfg_list and i < len(cycles_cfg_list)) else None
+                        raw_depths = predict_fifo_depths_xgb(expanded_model, folding, self._models[depth_key], cycles_cfg=cycles_cfg)
+                        if not raw_depths:
+                            if i == 0: print(f"[MultiModuleLearner] AVISO: XGBoost retornou vazio, usando depths do ONNX")
+                            raw_depths = dict(onnx_fifo_depths)
+                        else:
+                            if i == 0: print(f"[MultiModuleLearner] ✓ XGBoost predisse depths para {len(raw_depths)} FIFOs")
+                    except Exception as e:
+                        if i == 0: print(f"[MultiModuleLearner] Erro depths XGBoost: {e}, usando fallback ONNX")
+                        raw_depths = dict(onnx_fifo_depths)
+                else:
+                    raw_depths = dict(onnx_fifo_depths)
+                    if i == 0 and onnx_fifo_depths:
+                        avail = "ATIVO" if _FIFO_PREDICTOR_AVAILABLE else "INATIVO"
+                        has_model = depth_key in self._models
+                        print(f"[MultiModuleLearner] FIFO XGBoost={avail}, modelo_carregado={has_model} → usando depths do ONNX ({len(onnx_fifo_depths)} FIFOs)")
+                fifo_depths = {k.replace("_rtl", ""): v for k, v in raw_depths.items()}
+
             total = {col: 0.0 for col in TARGET_COLS}
             details = {}
 
@@ -500,11 +683,23 @@ class MultiModuleLearner:
                     for col in TARGET_COLS:
                         total[col] += pred.get(col, 0.0)
 
+            # Ensure Logic LUTs + LUTRAMs + SRLs == Total LUTs.
+            # Modules that only predict Total LUT (no breakdown) leave the
+            # sub-fields at 0; attribute the gap to Logic LUTs.
+            total_lut = total.get("Total LUT", 0)
+            breakdown  = total.get("Logic LUTs", 0) + total.get("LUTRAMs", 0) + total.get("SRLs", 0)
+            if breakdown < total_lut:
+                total["Logic LUTs"] = total.get("Logic LUTs", 0) + (total_lut - breakdown)
+
             results.append({
-                "Total LUTs":  int(round(total["Total LUT"])),
-                "FFs":         int(round(total["Total FFs"])),
-                "BRAM (36k)":  round(total["BRAM (36k eq.)"], 1),
-                "DSP Blocks":  int(round(total["DSP Blocks"])),
+                "Total LUTs":  int(round(total_lut)),
+                "Logic LUTs":  int(round(total.get("Logic LUTs", 0))),
+                "LUTRAMs":     int(round(total.get("LUTRAMs", 0))),
+                "SRLs":        int(round(total.get("SRLs", 0))),
+                "FFs":         int(round(total.get("Total FFs", total.get("FFs", 0)))),
+                "BRAM (36k)":  round(total.get("BRAM (36k eq.)", total.get("BRAM (36k)", 0)), 1),
+                "DSP Blocks":  int(round(total.get("DSP Blocks", 0))),
+                "fifo_depths": fifo_depths,
                 "_details":    details
             })
         return results
@@ -513,21 +708,249 @@ class MultiModuleLearner:
 # ENTRY POINT
 # =============================================================================
 
+def parse_util_rpt(rpt_path: str) -> dict:
+    """Parse finn_design_partition_util.rpt.
+    Returns {instance_name: {LUT, LogLUT, LUTRAM, SRL, FF, BRAM, DSP}}
+
+    Mirrors the indent-tracking approach in get_exhaustive_area_results.py:
+    finds finn_design_i, then takes direct children at indent+2.
+    FIFO chains aggregated: StreamingFIFO_rtl_N_K → StreamingFIFO_N.
+    """
+    results = {}
+    try:
+        with open(rpt_path, "r", encoding="utf-8") as f:
+            content = f.readlines()
+    except Exception as e:
+        print(f"[parse_util_rpt] Erro: {e}")
+        return results
+
+    in_utilization_table = False
+    header_indices: dict[str, int] = {}
+    col_headers: list[str] = []
+    found_finn_design_i = False
+    finn_design_i_indent = -1
+
+    for line_raw in content:
+        line_s = line_raw.strip()
+
+        if not line_s.startswith("|") and "1. Utilization by Hierarchy" in line_s:
+            in_utilization_table = True
+            continue
+        if not in_utilization_table:
+            continue
+        if not line_s.startswith("|"):
+            if found_finn_design_i:
+                break
+            continue
+
+        # Detect header row
+        if not col_headers and "Instance" in line_s and "Module" in line_s:
+            temp = [h.strip() for h in line_s.split("|") if h.strip()]
+            if temp and temp[0] == "Instance" and temp[1] == "Module":
+                col_headers = temp
+                for hdr in ["Total LUTs", "Logic LUTs", "LUTRAMs", "SRLs",
+                             "FFs", "RAMB36", "RAMB18", "DSP Blocks"]:
+                    if hdr in col_headers:
+                        header_indices[hdr] = col_headers.index(hdr)
+            continue
+
+        if not header_indices:
+            continue
+
+        try:
+            first_cell_raw = line_raw.split("|", 2)[1]
+        except IndexError:
+            continue
+
+        indent        = len(first_cell_raw) - len(first_cell_raw.lstrip(" "))
+        instance_name = first_cell_raw.strip()
+        data_parts    = [p.strip() for p in line_s.split("|")[1:-1]]
+
+        if len(data_parts) != len(col_headers):
+            continue
+
+        if not found_finn_design_i:
+            if instance_name == "finn_design_i":
+                found_finn_design_i = True
+                finn_design_i_indent = indent
+            continue
+
+        # Direct children of finn_design_i
+        if indent == finn_design_i_indent + 2:
+            if instance_name.startswith("("):
+                continue
+            try:
+                def _i(h): return int(data_parts[header_indices[h]])   if h in header_indices else 0
+                def _f(h): return float(data_parts[header_indices[h]]) if h in header_indices else 0.0
+                lut    = _i("Total LUTs"); llut  = _i("Logic LUTs")
+                lutram = _i("LUTRAMs");    srl   = _i("SRLs")
+                ff     = _i("FFs");        dsp   = _i("DSP Blocks")
+                bram   = _f("RAMB36") + _f("RAMB18") * 0.5
+            except (ValueError, KeyError):
+                continue
+
+            # Aggregate FIFO chains: StreamingFIFO_rtl_N_K → StreamingFIFO_N
+            m = re.match(r"StreamingFIFO_(?:rtl|hls)_(\d+)(?:_\d+)?$", instance_name)
+            key = f"StreamingFIFO_{m.group(1)}" if m else instance_name
+
+            if key not in results:
+                results[key] = dict(LUT=0, LogLUT=0, LUTRAM=0, SRL=0, FF=0, BRAM=0.0, DSP=0)
+            results[key]["LUT"]    += lut;  results[key]["LogLUT"] += llut
+            results[key]["LUTRAM"] += lutram; results[key]["SRL"]  += srl
+            results[key]["FF"]     += ff;   results[key]["BRAM"]   += bram
+            results[key]["DSP"]    += dsp
+
+        elif indent <= finn_design_i_indent:
+            found_finn_design_i = False
+
+    return results
+
 if __name__ == "__main__":
     import sys, json, pprint
     if len(sys.argv) < 2:
-        print("Uso: python multi_module_learner.py <run_dir>")
+        print("Uso: python multi_module_learner.py <run_dir> [--true-depths]")
         sys.exit(1)
 
     run_dir = sys.argv[1]
+    
+    # Flag para forçar o uso de profundidades reais no debug
+    use_true_depths = "--true-depths" in sys.argv
+    
     onnx_file = os.path.join(run_dir, "intermediate_models", "step_generate_estimate_reports.onnx")
     hw_config = os.path.join(run_dir, "final_hw_config.json")
-    
+    stitched_onnx = os.path.join(run_dir, "intermediate_models", "step_create_stitched_ip.onnx")
+
     with open(hw_config, "r") as f: cfg = json.load(f)
     m_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "retrieval", "results", "trained_models")
-    
+
+    cycles_path = os.path.join(run_dir, "report", "estimate_layer_cycles.json")
+    cycles_cfg = {}
+    if os.path.exists(cycles_path):
+        with open(cycles_path) as f: cycles_cfg = json.load(f)
+        print(f"[HARA] Ciclos carregados: {len(cycles_cfg)} nós de {cycles_path}")
+    else:
+        print(f"[HARA] AVISO: {cycles_path} não encontrado — usando fórmula MH×MW")
+
+    # Extrai profundidades reais do modelo costurado, se solicitado e disponível
+    true_depths = None
+    if use_true_depths and os.path.exists(stitched_onnx):
+        try:
+            model_stitch = ModelWrapper(stitched_onnx)
+            true_depths = {}
+            for node in model_stitch.graph.node:
+                if "FIFO" in node.op_type:
+                    name_clean = re.sub(r'_\d+$', '', node.name)
+                    depth = 2
+                    for attr in node.attribute:
+                        if attr.name == "depth":
+                            val = helper.get_attribute_value(attr)
+                            if isinstance(val, (list, tuple, np.ndarray)):
+                                depth = int(val[0]) if len(val) > 0 else 2
+                            else:
+                                depth = int(val)
+                            break
+                    true_depths[name_clean] = true_depths.get(name_clean, 0) + depth
+            print(f"[HARA-Debug] ✓ TRUE DEPTHS carregadas do ONNX final ({len(true_depths)} FIFOs)")
+        except Exception as e:
+            print(f"[!] Erro ao extrair True Depths: {e}")
+
     learner = MultiModuleLearner(m_dir)
-    p = learner.predict(onnx_file, [cfg])
     
+    # Predição com injeção de True Depths
+    p = learner.predict(
+        onnx_path=onnx_file, 
+        foldings=[cfg], 
+        cycles_cfg_list=[cycles_cfg],
+        precomputed_depths=[true_depths] if true_depths else None
+    )
+
+    # --- GT FIFO depths (from final_hw_config.json) ---
+    # OBS: O GT do config às vezes não bate com o ONNX final porque o FINN as estica/comprime!
+    gt_depths = {k: v.get("depth") for k, v in cfg.items()
+                 if isinstance(v, dict) and "depth" in v}
+    # Normalize names (strip _rtl/_hls suffixes for matching)
+    gt_norm = {}
+    for k, v in gt_depths.items():
+        clean = re.sub(r'_(rtl|hls|vivado)$', '', k)
+        clean = re.sub(r'_(rtl|hls|vivado)_(\d+)$', r'_\2', clean)
+        gt_norm[clean] = v
+        
+    # Se injetamos true_depths, vamos usar elas como o Ground Truth real da tabela
+    if true_depths:
+        gt_norm = true_depths
+
+    pred_depths = p[0].get("fifo_depths", {})
+
+    print("\n=== FIFO DEPTHS: GT vs PREDITO ===")
+    print(f"{'FIFO':<40} {'GT':>8} {'Predito':>10} {'Erro%':>8}")
+    print("-" * 70)
+
+    all_keys = sorted(set(list(pred_depths.keys()) + list(gt_norm.keys())))
+    for key in all_keys:
+        pred_val = pred_depths.get(key)
+        # Try matching GT by clean name
+        gt_val = gt_norm.get(key) or gt_norm.get(re.sub(r'_(rtl|hls)$', '', key))
+        gt_str   = str(gt_val)   if gt_val   is not None else "—"
+        pred_str = str(pred_val) if pred_val is not None else "—"
+        if gt_val and pred_val:
+            err = (pred_val - gt_val) / max(1, gt_val) * 100
+            err_str = f"{err:+.1f}%"
+        else:
+            err_str = ""
+        print(f"{key:<40} {gt_str:>8} {pred_str:>10} {err_str:>8}")
+
+    details = p[0].get("_details", {})
+
+    # Load GT utilization from Vivado RPT if available
+    rpt_path = os.path.join(run_dir, "stitched_ip", "finn_design_partition_util.rpt")
+    gt_util  = parse_util_rpt(rpt_path) if os.path.exists(rpt_path) else {}
+    has_gt   = bool(gt_util)
+
+    if details:
+        if has_gt:
+            hdr = (f"{'Módulo':<42} "
+                   f"{'LUT(GT)':>8} {'LUT(P)':>7} {'Err%':>6}  "
+                   f"{'FF(GT)':>7} {'FF(P)':>7} {'Err%':>6}  "
+                   f"{'BRAM(GT)':>8} {'BRAM(P)':>7} {'Err%':>6}  "
+                   f"{'DSP(GT)':>7} {'DSP(P)':>6}")
+            print(f"\n=== RECURSOS POR MÓDULO (GT vs PREDITO) ===")
+        else:
+            hdr = f"{'Módulo':<45} {'LUT':>7} {'LogLUT':>7} {'LUTRAM':>7} {'SRL':>5} {'FF':>7} {'BRAM':>6} {'DSP':>5}"
+            print(f"\n=== RECURSOS POR MÓDULO ===")
+        print(hdr)
+        print("-" * len(hdr))
+
+        # Collect all names from both prediction and GT
+        all_names = sorted(set(list(details.keys()) + list(gt_util.keys())))
+        for name in all_names:
+            pred = details.get(name, {})
+            gt   = gt_util.get(name)
+
+            # Also try matching GT by stripping _rtl/_hls suffix from prediction name
+            if gt is None:
+                clean = re.sub(r'_(rtl|hls)_(\d+)$', r'_\2', name)
+                gt = gt_util.get(clean)
+
+            p_lut  = int(round(pred.get("Total LUT",    pred.get("Total LUTs", 0))))
+            p_llut = int(round(pred.get("Logic LUTs",   0)))
+            p_lram = int(round(pred.get("LUTRAMs",      0)))
+            p_srl  = int(round(pred.get("SRLs",         0)))
+            p_ff   = int(round(pred.get("Total FFs",    pred.get("FFs", 0))))
+            p_bram = round(pred.get("BRAM (36k eq.)",   pred.get("BRAM (36k)", 0)), 1)
+            p_dsp  = int(round(pred.get("DSP Blocks",   0)))
+
+            if has_gt and gt:
+                g_lut  = gt["LUT"]; g_ff = gt["FF"]
+                g_bram = gt["BRAM"]; g_dsp = gt["DSP"]
+                def erp(p, g): return f"{(p-g)/max(1,g)*100:+.0f}%" if g or p else "  —"
+                print(f"{name:<42} "
+                      f"{g_lut:>8} {p_lut:>7} {erp(p_lut,g_lut):>6}  "
+                      f"{g_ff:>7} {p_ff:>7} {erp(p_ff,g_ff):>6}  "
+                      f"{g_bram:>8.1f} {p_bram:>7.1f} {erp(p_bram,g_bram):>6}  "
+                      f"{g_dsp:>7} {p_dsp:>6}")
+            else:
+                print(f"{name:<45} {p_lut:>7} {p_llut:>7} {p_lram:>7} {p_srl:>5} {p_ff:>7} {p_bram:>6} {p_dsp:>5}")
+
     print("\n=== ESTIMATIVA FINAL HARA (Área Total Estimada) ===")
-    pprint.pprint(p[0], sort_dicts=False)
+    summary = {k: v for k, v in p[0].items() if k not in ("fifo_depths", "_details")}
+    pprint.pprint(summary, sort_dicts=False)
